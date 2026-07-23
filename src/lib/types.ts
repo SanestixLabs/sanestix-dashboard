@@ -142,3 +142,82 @@ export interface ProfitSplitSuggestion {
   grossProfit: number;
   outstandingLoanBalance: number;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 registers — Vendors, Subscriptions, Assets, Debts, Employees
+// ---------------------------------------------------------------------------
+
+export type VendorStatus = "active" | "inactive";
+
+export interface Vendor {
+  id: string;
+  name: string;
+  category: string | null;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  paymentTerms: string | null;
+  status: VendorStatus;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type BillingCycle = "monthly" | "annual";
+export type SubscriptionStatus = "active" | "cancelled";
+
+export interface Subscription {
+  id: string;
+  vendorName: string;
+  cost: number;
+  billingCycle: BillingCycle;
+  renewalDate: string | null;
+  owner: string | null;
+  status: SubscriptionStatus;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type AssetCondition = "new" | "good" | "fair" | "poor" | "disposed";
+
+export interface Asset {
+  id: string;
+  name: string;
+  purchaseDate: string;
+  cost: number;
+  owner: string | null;
+  condition: AssetCondition;
+  serialNumber: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type DebtStatus = "outstanding" | "paid" | "overdue";
+
+export interface Debt {
+  id: string;
+  counterparty: string;
+  principal: number;
+  paidAmount: number;
+  remainingBalance: number;
+  dueDate: string | null;
+  status: DebtStatus;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type EmployeeStatus = "active" | "inactive";
+
+export interface Employee {
+  id: string;
+  fullName: string;
+  role: string | null;
+  salary: number | null;
+  startDate: string | null;
+  status: EmployeeStatus;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
