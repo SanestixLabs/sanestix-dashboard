@@ -1,0 +1,41 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Read from the .env file sitting next to this compose file.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    container_name: sanestix_dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    # No ports: published to the host at all — Traefik reaches this
+    # container over the shared Docker network below. Nothing here
+    # touches the host's port 80/443, nginx, or any other project.
+    networks:
+      - n8n_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=n8n_default"
+
+      # HTTP router — redirects to HTTPS
+      - "traefik.http.routers.sanestix-dashboard-web.rule=Host(`dashboard.sanestix.com`)"
+      - "traefik.http.routers.sanestix-dashboard-web.entrypoints=web"
+      - "traefik.http.routers.sanestix-dashboard-web.middlewares=sanestix-dashboard-https-redirect"
+      - "traefik.http.middlewares.sanestix-dashboard-https-redirect.redirectscheme.scheme=https"
+
+      # HTTPS router — terminates TLS using the existing ACME resolver
+      - "traefik.http.routers.sanestix-dashboard-secure.rule=Host(`dashboard.sanestix.com`)"
+      - "traefik.http.routers.sanestix-dashboard-secure.entrypoints=websecure"
+      - "traefik.http.routers.sanestix-dashboard-secure.tls=true"
+      - "traefik.http.routers.sanestix-dashboard-secure.tls.certresolver=mytlschallenge"
+
+      # Tell Traefik which port the container actually listens on
+      - "traefik.http.services.sanestix-dashboard.loadbalancer.server.port=3000"
+
+networks:
+  n8n_default:
+    external: true
