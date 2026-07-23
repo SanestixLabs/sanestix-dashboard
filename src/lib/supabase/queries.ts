@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import type {
+  Asset,
   CashFlowPoint,
+  Debt,
+  Employee,
   Founder,
   Invoice,
   KpiCard,
@@ -9,7 +12,9 @@ import type {
   LoanEntry,
   ProfitDistribution,
   RevenuePoint,
+  Subscription,
   Transaction,
+  Vendor,
 } from "@/lib/types";
 
 const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "short" });
@@ -293,4 +298,167 @@ export async function getProfitDistributions(): Promise<ProfitDistribution[]> {
     note: row.note,
     createdAt: row.created_at,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 registers — Vendors, Subscriptions, Assets, Debts, Employees
+// ---------------------------------------------------------------------------
+
+/**
+ * Full vendor list, newest first, joined with the logging user's name.
+ */
+export async function getVendors(): Promise<Vendor[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vendors")
+    .select(
+      "id, name, category, contact_person, contact_email, payment_terms, status, notes, created_at, profiles(full_name)"
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to load vendors: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      contactPerson: row.contact_person,
+      contactEmail: row.contact_email,
+      paymentTerms: row.payment_terms,
+      status: row.status,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Full subscription register, soonest renewal first, joined with the
+ * logging user's name.
+ */
+export async function getSubscriptions(): Promise<Subscription[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select(
+      "id, vendor_name, cost, billing_cycle, renewal_date, owner, status, notes, created_at, profiles(full_name)"
+    )
+    .order("renewal_date", { ascending: true, nullsFirst: false });
+
+  if (error) throw new Error(`Failed to load subscriptions: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      id: row.id,
+      vendorName: row.vendor_name,
+      cost: Number(row.cost),
+      billingCycle: row.billing_cycle,
+      renewalDate: row.renewal_date,
+      owner: row.owner,
+      status: row.status,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Full asset register, newest purchase first, joined with the logging
+ * user's name.
+ */
+export async function getAssets(): Promise<Asset[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .select(
+      "id, name, purchase_date, cost, owner, condition, serial_number, notes, created_at, profiles(full_name)"
+    )
+    .order("purchase_date", { ascending: false });
+
+  if (error) throw new Error(`Failed to load assets: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      id: row.id,
+      name: row.name,
+      purchaseDate: row.purchase_date,
+      cost: Number(row.cost),
+      owner: row.owner,
+      condition: row.condition,
+      serialNumber: row.serial_number,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Full debts & liabilities register, soonest due date first, joined with
+ * the logging user's name. remainingBalance is derived (principal - paid).
+ */
+export async function getDebts(): Promise<Debt[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("debts")
+    .select(
+      "id, counterparty, principal, paid_amount, due_date, status, notes, created_at, profiles(full_name)"
+    )
+    .order("due_date", { ascending: true, nullsFirst: false });
+
+  if (error) throw new Error(`Failed to load debts: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    const principal = Number(row.principal);
+    const paidAmount = Number(row.paid_amount);
+    return {
+      id: row.id,
+      counterparty: row.counterparty,
+      principal,
+      paidAmount,
+      remainingBalance: principal - paidAmount,
+      dueDate: row.due_date,
+      status: row.status,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Full employee register, newest first, joined with the logging user's name.
+ */
+export async function getEmployees(): Promise<Employee[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("employees")
+    .select(
+      "id, full_name, role, salary, start_date, status, notes, created_at, profiles(full_name)"
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Failed to load employees: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      id: row.id,
+      fullName: row.full_name,
+      role: row.role,
+      salary: row.salary === null ? null : Number(row.salary),
+      startDate: row.start_date,
+      status: row.status,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
 }
