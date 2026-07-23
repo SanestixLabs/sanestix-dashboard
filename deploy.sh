@@ -17,7 +17,7 @@ if [ -d .git ]; then
 fi
 
 echo "==> Building image"
-docker compose build
+docker compose build --no-cache
 
 echo "==> Starting/replacing container"
 docker compose up -d

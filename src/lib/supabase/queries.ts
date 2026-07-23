@@ -218,7 +218,7 @@ export async function getLoanLedger(): Promise<LoanEntry[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("founder_loans")
-    .select("id, founder_id, occurred_on, description, direction, amount, profiles(full_name)")
+    .select("id, founder_id, occurred_on, description, direction, amount, profiles!founder_loans_founder_id_fkey(full_name)")
     .order("occurred_on", { ascending: false });
 
   if (error) throw new Error(`Failed to load founder_loans: ${error.message}`);
