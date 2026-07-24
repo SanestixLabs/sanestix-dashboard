@@ -23,9 +23,16 @@ one-file change (see `src/lib/data.ts`).
 
 **Status:**
 - **Auth** — real, via Supabase Auth (email/password). See "Auth & Database (Supabase)" below.
-- **Finance** — real, backed by Supabase Postgres tables (`finance_transactions`, `invoices`).
+- **Finance** — real, backed by Supabase Postgres, across 15 pages (Overview, Income,
+  Expenses, Transactions, Invoices, Investments, Reimbursements, Founder Entry,
+  Profit Split, Reports, Vendors, Employees, Subscriptions, Assets, Debts). See
+  `docs/FINANCE.md` for the full breakdown of every page, table, and action.
 - **Projects, CRM** — still mock data in `src/lib/data.ts`, clearly labeled, per the
   roadmap's own sequencing (Auth → Finance → Projects → CRM → Dashboard).
+
+Every route under `/finance` now has a scoped `error.tsx` (readable error card
+with a likely-cause hint and a "Try again" button, instead of the raw Next.js
+error screen) and a `loading.tsx` skeleton — see `src/app/finance/error.tsx`.
 
 ## Project structure
 
@@ -113,6 +120,21 @@ This app uses [Supabase](https://supabase.com) for both auth and the database
    - `founder_loans` and `profit_distributions` — the tables behind the
      Loan Ledger and Profit Split pages (left empty here — see step 6 below)
 3. You can re-run this file safely later — it's idempotent.
+
+### 2b. Run the Phase 2 registers schema (required for 5 of the Finance tabs)
+
+The **Vendors, Employees, Subscriptions, Assets, and Debts** pages read from
+tables that are **not** in `schema.sql` — they live in a separate file. If
+you skip this step, those 5 pages will fail to load (they'll show a "This
+finance page couldn't load" error instead of data) because their tables
+don't exist yet.
+
+1. In the SQL Editor, paste the entire contents of
+   `supabase/schema-phase2-registers.sql` and run it.
+2. This creates `vendors`, `subscriptions`, `assets`, `debts`, and
+   `employees` — all with Row Level Security enabled, same pattern as
+   `schema.sql`.
+3. Also idempotent — safe to re-run.
 
 ### 3. Get your API keys
 

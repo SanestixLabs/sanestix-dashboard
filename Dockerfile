@@ -1,14 +1,20 @@
 # --- deps ---------------------------------------------------------------
-FROM node:20-bookworm-slim AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # --- builder --------------------------------------------------------------
-FROM node:20-bookworm-slim AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+RUN echo "=== actions.ts inside container ===" && \
+    cat -A src/app/finance/actions.ts | head -10 && \
+    wc -l src/app/finance/actions.ts && \
+    md5sum src/app/finance/actions.ts
+
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so
@@ -42,4 +48,5 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 EXPOSE 3000
+
 CMD ["node", "server.js"]
