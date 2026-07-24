@@ -1,0 +1,8 @@
+--- a/src/lib/supabase/queries.ts
++++ b/src/lib/supabase/queries.ts
+@@ -1,7 +1,7 @@
+     .from("employees")
+     .select(
+-      "id, full_name, role, salary, start_date, status, notes, created_at, profiles(full_name)"
++      "id, full_name, role, salary, start_date, status, notes, created_at, profiles!created_by(full_name)"
+     )

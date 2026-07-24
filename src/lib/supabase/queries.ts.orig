@@ -441,7 +441,7 @@ export async function getEmployees(): Promise<Employee[]> {
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "id, full_name, role, salary, start_date, status, notes, created_at, profiles!created_by(full_name)"
+      "id, full_name, role, salary, start_date, status, notes, created_at, profiles(full_name)"
     )
     .order("created_at", { ascending: false });
 

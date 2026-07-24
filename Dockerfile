@@ -10,11 +10,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN echo "=== actions.ts inside container ===" && \
-    cat -A src/app/finance/actions.ts | head -10 && \
-    wc -l src/app/finance/actions.ts && \
-    md5sum src/app/finance/actions.ts
-
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so

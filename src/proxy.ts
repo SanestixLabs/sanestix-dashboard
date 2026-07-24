@@ -30,9 +30,23 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // This runs on literally every request. If Supabase is briefly
+  // unreachable (paused free-tier project, DNS blip, expired/rotated key),
+  // getUser() throws — and an uncaught throw in middleware takes down the
+  // ENTIRE site with a raw platform error page (no custom error.tsx, no
+  // finance/error.tsx hint), not just the page being visited. That matches
+  // "this page and many others are broken" far better than a single bad
+  // query would. Fail open here (treat as logged-out) so a Supabase hiccup
+  // degrades to "please log in" instead of a site-wide outage.
+  let user = null;
+  try {
+    const {
+      data: { user: authedUser },
+    } = await supabase.auth.getUser();
+    user = authedUser;
+  } catch (error) {
+    console.error("proxy: supabase.auth.getUser() failed", error);
+  }
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/signup");
