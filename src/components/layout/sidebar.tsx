@@ -82,6 +82,9 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
               <div key={label}>
                 <Link
                   href={href}
+                  onClick={() => {
+                    if (isFinance) setFinanceExpanded(true);
+                  }}
                   className={cn(
                     "group flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] font-medium transition-all duration-200 ease-out",
                     active

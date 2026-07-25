@@ -125,7 +125,9 @@ export async function GET() {
           "employee",
           employee.fullName,
           employee.status,
-          employee.role,
+          employee.payDay
+            ? `${employee.role ?? ""} (payday: ${employee.payDay})`.trim()
+            : employee.role,
           employee.salary ?? "",
         ])
       ),

@@ -78,17 +78,6 @@ body {
   background: var(--color-outline);
 }
 
-@keyframes dash {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-.trend-chart-path {
-  stroke-dasharray: 1200;
-  stroke-dashoffset: 1200;
-  animation: dash 1.4s ease-out forwards;
-}
-
 .sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-outline-variant) transparent;
@@ -105,4 +94,15 @@ body {
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--color-outline);
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.trend-chart-path {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: dash 1.4s ease-out forwards;
 }

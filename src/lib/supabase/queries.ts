@@ -442,7 +442,7 @@ export async function getEmployees(): Promise<Employee[]> {
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "id, full_name, role, salary, start_date, status, notes, created_at, profiles!created_by(full_name)"
+      "id, full_name, role, salary, start_date, status, pay_day, notes, created_at, profiles!created_by(full_name)"
     )
     .order("created_at", { ascending: false });
 
@@ -457,6 +457,7 @@ export async function getEmployees(): Promise<Employee[]> {
       salary: row.salary === null ? null : Number(row.salary),
       startDate: row.start_date,
       status: row.status,
+      payDay: row.pay_day === null ? null : Number(row.pay_day),
       notes: row.notes,
       createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,
@@ -465,9 +466,37 @@ export async function getEmployees(): Promise<Employee[]> {
 }
 
 /**
- * Money due out (unpaid debts + upcoming subscription renewals) and money
- * due in (unpaid invoices), merged into one sorted feed for the Finance
- * overview's "Upcoming Payments" widget.
+ * Given a day-of-month (1-31) and a reference "today", returns the ISO date
+ * of the next occurrence of that payday: this month if it hasn't passed
+ * yet, otherwise next month. Days beyond a month's length (e.g. 31 in
+ * February, or in April/June/Sept/Nov) are clamped to that month's last day.
+ */
+function nextPayDate(payDay: number, today: Date): string {
+  const clamp = (year: number, monthIndex: number) => {
+    const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+    return Math.min(payDay, lastDayOfMonth);
+  };
+
+  const thisMonthDay = clamp(today.getFullYear(), today.getMonth());
+  const thisMonthDate = new Date(today.getFullYear(), today.getMonth(), thisMonthDay);
+
+  const target =
+    thisMonthDate >= today
+      ? thisMonthDate
+      : (() => {
+          const y = today.getFullYear();
+          const m = today.getMonth() + 1;
+          const day = clamp(y, m);
+          return new Date(y, m, day);
+        })();
+
+  return target.toISOString().slice(0, 10);
+}
+
+/**
+ * Money due out (unpaid debts + upcoming subscription renewals + upcoming
+ * payroll) and money due in (unpaid invoices), merged into one sorted feed
+ * for the Finance overview's "Upcoming Payments" widget.
  *
  * Window: every overdue item, regardless of age, plus anything due within
  * the next `withinDays` days (default 30) — so the widget stays useful
@@ -483,6 +512,7 @@ export async function getUpcomingPayments(withinDays = 30): Promise<{
     { data: invoices, error: invError },
     { data: debts, error: debtError },
     { data: subscriptions, error: subError },
+    { data: employees, error: empError },
   ] = await Promise.all([
     supabase
       .from("invoices")
@@ -498,11 +528,18 @@ export async function getUpcomingPayments(withinDays = 30): Promise<{
       .select("id, vendor_name, cost, renewal_date, status")
       .eq("status", "active")
       .not("renewal_date", "is", null),
+    supabase
+      .from("employees")
+      .select("id, full_name, salary, pay_day, status")
+      .eq("status", "active")
+      .not("pay_day", "is", null)
+      .not("salary", "is", null),
   ]);
 
   if (invError) throw new Error(`Failed to load invoices: ${invError.message}`);
   if (debtError) throw new Error(`Failed to load debts: ${debtError.message}`);
   if (subError) throw new Error(`Failed to load subscriptions: ${subError.message}`);
+  if (empError) throw new Error(`Failed to load employees: ${empError.message}`);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -547,11 +584,23 @@ export async function getUpcomingPayments(withinDays = 30): Promise<{
       overdue: new Date(row.renewal_date as string) < today,
     }));
 
+  const dueFromPayroll: UpcomingPayment[] = (employees ?? [])
+    .map((row) => ({
+      id: row.id,
+      direction: "due" as const,
+      source: "employee" as const,
+      label: `${row.full_name} salary`,
+      amount: Number(row.salary),
+      dueDate: nextPayDate(Number(row.pay_day), today),
+      overdue: false, // always projected forward, so never in the past
+    }))
+    .filter((row) => inWindow(row.dueDate));
+
   const byDueDateAsc = (a: UpcomingPayment, b: UpcomingPayment) =>
     new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
 
   return {
-    due: [...dueFromDebts, ...dueFromSubscriptions].sort(byDueDateAsc),
+    due: [...dueFromDebts, ...dueFromSubscriptions, ...dueFromPayroll].sort(byDueDateAsc),
     toReceive: toReceive.sort(byDueDateAsc),
   };
 }

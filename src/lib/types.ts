@@ -217,6 +217,7 @@ export interface Employee {
   salary: number | null;
   startDate: string | null;
   status: EmployeeStatus;
+  payDay: number | null;
   notes: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -228,7 +229,7 @@ export interface Employee {
 // ---------------------------------------------------------------------------
 
 export type UpcomingPaymentDirection = "due" | "to_receive";
-export type UpcomingPaymentSource = "invoice" | "debt" | "subscription";
+export type UpcomingPaymentSource = "invoice" | "debt" | "subscription" | "employee";
 
 export interface UpcomingPayment {
   id: string;

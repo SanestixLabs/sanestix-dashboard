@@ -8,12 +8,14 @@ const SOURCE_LABEL: Record<UpcomingPayment["source"], string> = {
   invoice: "Invoice",
   debt: "Debt",
   subscription: "Subscription",
+  employee: "Salary",
 };
 
 const SOURCE_HREF: Record<UpcomingPayment["source"], string> = {
   invoice: "/finance/invoices",
   debt: "/finance/debts",
   subscription: "/finance/subscriptions",
+  employee: "/finance/employees",
 };
 
 const MAX_ROWS = 6;
@@ -124,7 +126,7 @@ export function UpcomingPayments({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <PaymentColumn
         title="Due"
-        description="Debts and subscription renewals, next 30 days"
+        description="Debts, subscription renewals & payroll, next 30 days"
         icon={<ArrowUpCircle size={18} />}
         iconClass="text-error"
         totalLabel="Total Due"

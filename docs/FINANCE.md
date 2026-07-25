@@ -7,12 +7,17 @@ reason a page fails to load.
 
 ## Required setup (do this first)
 
-Two SQL files must be run, **in this order**, in the Supabase SQL editor:
+Three SQL files must be run, **in this order**, in the Supabase SQL editor:
 
 1. `supabase/schema.sql` — creates `profiles`, `finance_transactions`,
    `invoices`, `founder_loans`, `profit_distributions`.
 2. `supabase/schema-phase2-registers.sql` — creates `vendors`,
    `subscriptions`, `assets`, `debts`, `employees`.
+3. `supabase/schema-phase3-employee-payday.sql` — adds `employees.pay_day`
+   (day of month, 1-31). Without this, existing employee rows just have
+   `pay_day = null` and are silently excluded from the Upcoming Payments
+   widget's payroll line — nothing breaks, payroll just won't show up
+   until each employee has a payday set on `/finance/employees`.
 
 **If step 2 is skipped, the Vendors / Employees / Subscriptions / Assets /
 Debts pages will fail to load.** This is the single most common cause of
@@ -39,7 +44,7 @@ them is always safe.
 
 | Tab | Route | Reads | Writes (Server Action) |
 |---|---|---|---|
-| Overview | `/finance` | `getFinanceData()` (aggregates transactions + invoices) | — |
+| Overview | `/finance` | `getFinanceData()` (aggregates transactions + invoices), `getUpcomingPayments()` (debts, subscriptions, payroll, invoices) | — |
 | Income | `/finance/income` | `getTransactions()` filtered `kind = "revenue"` | `addTransaction` (finance/transactions) |
 | Expenses | `/finance/expenses` | `getTransactions()` filtered `kind = "expense"` | `addTransaction` |
 | Transactions | `/finance/transactions` | `getTransactions()` | `addTransaction` |
@@ -50,7 +55,7 @@ them is always safe.
 | Profit Split | `/finance/profit-split` | `getProfitDistributions()` | `addProfitDistribution` |
 | Reports | `/finance/reports` | All of the above **plus** `getVendors`, `getSubscriptions`, `getAssets`, `getDebts`, `getEmployees` | — (read-only; links to CSV export) |
 | Vendors | `/finance/vendors` | `getVendors()` | `addVendor`, `updateVendorStatus` |
-| Employees | `/finance/employees` | `getEmployees()` | `addEmployee`, `updateEmployeeStatus` |
+| Employees | `/finance/employees` | `getEmployees()` | `addEmployee`, `updateEmployeeStatus`, `updateEmployeePayDay` |
 | Subscriptions | `/finance/subscriptions` | `getSubscriptions()` | `addSubscription`, `updateSubscriptionStatus` |
 | Assets | `/finance/assets` | `getAssets()` | `addAsset`, `updateAssetCondition` |
 | Debts | `/finance/debts` | `getDebts()` | `addDebt`, `updateDebtStatus` |
@@ -107,7 +112,9 @@ with HTTP 500 instead of an unhandled server exception.
   `remaining_balance`, `due_date`, `status` (`outstanding` | `paid` |
   `overdue`).
 - **Employees**: `full_name`, `role`, `salary`, `start_date`, `status`
-  (`active` | `inactive`).
+  (`active` | `inactive`), `pay_day` (1-31, nullable — recurring salary
+  due date used by Upcoming Payments; short months are clamped to their
+  last day, e.g. 31 → 28/29 in February).
 
 ## Troubleshooting checklist
 

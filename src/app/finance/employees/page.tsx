@@ -1,9 +1,10 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
+import { EmployeePayDayForm } from "@/components/finance/employee-payday-form";
 import { formatCurrency } from "@/lib/utils";
 import { getEmployees } from "@/lib/supabase/queries";
-import { addEmployee, updateEmployeeStatus } from "@/app/finance/actions";
+import { addEmployee, updateEmployeeStatus, updateEmployeePayDay } from "@/app/finance/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,20 @@ export default async function EmployeesPage({
 
             <div>
               <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
+                Payday (day of month)
+              </label>
+              <input
+                type="number"
+                name="payDay"
+                min="1"
+                max="31"
+                className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
+                placeholder="e.g. 1 — optional, powers Upcoming Payments"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
                 Status
               </label>
               <select
@@ -148,13 +163,14 @@ export default async function EmployeesPage({
                   <th className="pb-2 pr-4">Role</th>
                   <th className="pb-2 pr-4">Start date</th>
                   <th className="pb-2 pr-4 text-right">Salary</th>
+                  <th className="pb-2 pr-4">Payday</th>
                   <th className="pb-2">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {employees.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
                       No employees recorded yet.
                     </td>
                   </tr>
@@ -168,6 +184,13 @@ export default async function EmployeesPage({
                     </td>
                     <td className="py-2.5 pr-4 text-right font-mono-data">
                       {e.salary !== null ? formatCurrency(e.salary) : "—"}
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <EmployeePayDayForm
+                        employeeId={e.id}
+                        payDay={e.payDay}
+                        action={updateEmployeePayDay}
+                      />
                     </td>
                     <td className="py-2.5">
                       <RegisterStatusForm

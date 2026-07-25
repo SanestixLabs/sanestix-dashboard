@@ -495,8 +495,14 @@ export async function addEmployee(formData: FormData) {
   const salary = salaryRaw && String(salaryRaw).trim() !== "" ? Number(salaryRaw) : null;
   const startDate = String(formData.get("startDate") ?? "") || null;
   const status = String(formData.get("status") ?? "active");
+  const payDayRaw = formData.get("payDay");
+  const payDay = payDayRaw && String(payDayRaw).trim() !== "" ? Number(payDayRaw) : null;
 
-  if (!fullName || (salary !== null && !(salary >= 0))) {
+  if (
+    !fullName ||
+    (salary !== null && !(salary >= 0)) ||
+    (payDay !== null && !(Number.isInteger(payDay) && payDay >= 1 && payDay <= 31))
+  ) {
     redirect("/finance/employees?error=Please fill in every required field");
   }
 
@@ -511,6 +517,7 @@ export async function addEmployee(formData: FormData) {
     salary,
     start_date: startDate,
     status,
+    pay_day: payDay,
     created_by: user?.id ?? null,
   });
 
@@ -538,5 +545,32 @@ export async function updateEmployeeStatus(formData: FormData) {
   }
 
   revalidatePath("/finance/employees");
+  redirect("/finance/employees");
+}
+
+export async function updateEmployeePayDay(formData: FormData) {
+  const employeeId = String(formData.get("employeeId") ?? "");
+  const payDayRaw = String(formData.get("payDay") ?? "").trim();
+  const payDay = payDayRaw === "" ? null : Number(payDayRaw);
+
+  if (!employeeId) {
+    redirect("/finance/employees?error=Invalid payday update");
+  }
+  if (payDay !== null && !(Number.isInteger(payDay) && payDay >= 1 && payDay <= 31)) {
+    redirect("/finance/employees?error=Payday must be a day of month between 1 and 31");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("employees")
+    .update({ pay_day: payDay })
+    .eq("id", employeeId);
+
+  if (error) {
+    redirect(`/finance/employees?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/finance/employees");
+  revalidatePath("/finance");
   redirect("/finance/employees");
 }
