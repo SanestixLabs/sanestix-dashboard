@@ -5,6 +5,7 @@ import type {
   CashFlowPoint,
   Debt,
   Employee,
+  EmployeePayment,
   Founder,
   Invoice,
   KpiCard,
@@ -458,6 +459,45 @@ export async function getEmployees(): Promise<Employee[]> {
       startDate: row.start_date,
       status: row.status,
       payDay: row.pay_day === null ? null : Number(row.pay_day),
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Salary payment history, newest first, joined with the employee's name and
+ * the logging user's name. Pass an employeeId to scope to one employee.
+ */
+export async function getEmployeePayments(employeeId?: string): Promise<EmployeePayment[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("employee_payments")
+    .select(
+      "id, employee_id, amount, pay_period, paid_on, proof_url, notes, created_at, employees(full_name), profiles!created_by(full_name)"
+    )
+    .order("paid_on", { ascending: false });
+
+  if (employeeId) {
+    query = query.eq("employee_id", employeeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(`Failed to load employee_payments: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const employee = Array.isArray(row.employees) ? row.employees[0] : row.employees;
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      id: row.id,
+      employeeId: row.employee_id,
+      employeeName: employee?.full_name ?? null,
+      amount: Number(row.amount),
+      payPeriod: row.pay_period,
+      paidOn: row.paid_on,
+      proofUrl: row.proof_url,
       notes: row.notes,
       createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,

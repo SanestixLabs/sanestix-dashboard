@@ -1,9 +1,10 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
+import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
 import { formatCurrency } from "@/lib/utils";
 import { getAssets } from "@/lib/supabase/queries";
-import { addAsset, updateAssetCondition } from "@/app/finance/actions";
+import { addAsset, updateAssetCondition, deleteAsset } from "@/app/finance/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -170,13 +171,14 @@ export default async function AssetsPage({
                   <th className="pb-2 pr-4">Owner</th>
                   <th className="pb-2 pr-4">Serial</th>
                   <th className="pb-2 pr-4 text-right">Cost</th>
-                  <th className="pb-2">Condition</th>
+                  <th className="pb-2 pr-4">Condition</th>
+                  <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {assets.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={7} className="py-6 text-center text-on-surface-variant">
                       No assets recorded yet.
                     </td>
                   </tr>
@@ -217,6 +219,17 @@ export default async function AssetsPage({
                         ]}
                         action={updateAssetCondition}
                       />
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex justify-end">
+                        <RegisterDeleteButton
+                          action={deleteAsset}
+                          idFieldName="assetId"
+                          idValue={a.id}
+                          redirectTo="/finance/assets"
+                          label="asset"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

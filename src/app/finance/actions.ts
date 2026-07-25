@@ -548,6 +548,222 @@ export async function updateEmployeeStatus(formData: FormData) {
   redirect("/finance/employees");
 }
 
+// ---------------------------------------------------------------------------
+// Delete support — same "re-enter your password" confirmation pattern as
+// deleteTransaction, applied to every Phase 2 register.
+// ---------------------------------------------------------------------------
+
+async function confirmPasswordOrRedirect(
+  password: string,
+  redirectTo: string
+): Promise<Awaited<ReturnType<typeof createClient>>> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("You must be signed in to delete this")}`);
+  }
+  if (!password) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Enter your password to delete this")}`);
+  }
+
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+
+  if (authError) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Incorrect password. Nothing was deleted.")}`);
+  }
+
+  return supabase;
+}
+
+export async function deleteVendor(formData: FormData) {
+  const vendorId = String(formData.get("vendorId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/vendors";
+
+  if (!vendorId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing vendor id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("vendors").delete().eq("id", vendorId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/vendors");
+  redirect(redirectTo);
+}
+
+export async function deleteSubscription(formData: FormData) {
+  const subscriptionId = String(formData.get("subscriptionId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/subscriptions";
+
+  if (!subscriptionId)
+    redirect(`${redirectTo}?error=${encodeURIComponent("Missing subscription id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("subscriptions").delete().eq("id", subscriptionId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/subscriptions");
+  revalidatePath("/finance");
+  redirect(redirectTo);
+}
+
+export async function deleteAsset(formData: FormData) {
+  const assetId = String(formData.get("assetId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/assets";
+
+  if (!assetId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing asset id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("assets").delete().eq("id", assetId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/assets");
+  redirect(redirectTo);
+}
+
+export async function deleteDebt(formData: FormData) {
+  const debtId = String(formData.get("debtId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/debts";
+
+  if (!debtId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing debt id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("debts").delete().eq("id", debtId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/debts");
+  revalidatePath("/finance");
+  redirect(redirectTo);
+}
+
+export async function deleteInvoice(formData: FormData) {
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/invoices";
+
+  if (!invoiceId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing invoice id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/invoices");
+  revalidatePath("/finance");
+  redirect(redirectTo);
+}
+
+export async function deleteEmployee(formData: FormData) {
+  const employeeId = String(formData.get("employeeId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/employees";
+
+  if (!employeeId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing employee id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("employees").delete().eq("id", employeeId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/employees");
+  revalidatePath("/finance");
+  redirect(redirectTo);
+}
+
+// ---------------------------------------------------------------------------
+// Payroll — mark a salary as paid for a given month, with an optional photo
+// of the payment proof (bank transfer screenshot, receipt, etc).
+// ---------------------------------------------------------------------------
+
+export async function markSalaryPaid(formData: FormData) {
+  const employeeId = String(formData.get("employeeId") ?? "");
+  const amount = Number(formData.get("amount"));
+  const payPeriodRaw = String(formData.get("payPeriod") ?? ""); // "YYYY-MM"
+  const notes = String(formData.get("notes") ?? "") || null;
+  const proof = formData.get("proof");
+
+  if (!employeeId || !(amount > 0) || !/^\d{4}-\d{2}$/.test(payPeriodRaw)) {
+    redirect("/finance/employees?error=Please fill in employee, amount and pay period");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let proofUrl: string | null = null;
+
+  if (proof instanceof File && proof.size > 0) {
+    if (!proof.type.startsWith("image/")) {
+      redirect("/finance/employees?error=Payment proof must be an image file");
+    }
+    if (proof.size > 5 * 1024 * 1024) {
+      redirect("/finance/employees?error=Payment proof image must be under 5MB");
+    }
+
+    const ext = proof.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${employeeId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("payment-proofs")
+      .upload(path, proof, { contentType: proof.type, upsert: false });
+
+    if (uploadError) {
+      redirect(
+        `/finance/employees?error=${encodeURIComponent(`Proof upload failed: ${uploadError.message}`)}`
+      );
+    }
+
+    proofUrl = supabase.storage.from("payment-proofs").getPublicUrl(path).data.publicUrl;
+  }
+
+  const { error } = await supabase.from("employee_payments").insert({
+    employee_id: employeeId,
+    amount,
+    pay_period: `${payPeriodRaw}-01`,
+    proof_url: proofUrl,
+    notes,
+    created_by: user?.id ?? null,
+  });
+
+  if (error) {
+    redirect(`/finance/employees?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/finance/employees");
+  revalidatePath("/finance");
+  redirect("/finance/employees");
+}
+
+export async function deleteEmployeePayment(formData: FormData) {
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = "/finance/employees";
+
+  if (!paymentId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing payment id")}`);
+
+  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { error } = await supabase.from("employee_payments").delete().eq("id", paymentId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/finance/employees");
+  revalidatePath("/finance");
+  redirect(redirectTo);
+}
+
 export async function updateEmployeePayDay(formData: FormData) {
   const employeeId = String(formData.get("employeeId") ?? "");
   const payDayRaw = String(formData.get("payDay") ?? "").trim();

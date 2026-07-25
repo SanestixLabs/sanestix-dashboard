@@ -1,8 +1,9 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
+import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
 import { getVendors } from "@/lib/supabase/queries";
-import { addVendor, updateVendorStatus } from "@/app/finance/actions";
+import { addVendor, updateVendorStatus, deleteVendor } from "@/app/finance/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -170,13 +171,14 @@ export default async function VendorsPage({
                   <th className="pb-2 pr-4">Category</th>
                   <th className="pb-2 pr-4">Contact</th>
                   <th className="pb-2 pr-4">Terms</th>
-                  <th className="pb-2">Status</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {vendors.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
                       No vendors recorded yet.
                     </td>
                   </tr>
@@ -203,6 +205,17 @@ export default async function VendorsPage({
                         ]}
                         action={updateVendorStatus}
                       />
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex justify-end">
+                        <RegisterDeleteButton
+                          action={deleteVendor}
+                          idFieldName="vendorId"
+                          idValue={v.id}
+                          redirectTo="/finance/vendors"
+                          label="vendor"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

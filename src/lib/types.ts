@@ -240,3 +240,21 @@ export interface UpcomingPayment {
   dueDate: string;
   overdue: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Employee salary payments — payroll history with optional proof-of-payment
+// image, so each payday can be marked paid and audited later.
+// ---------------------------------------------------------------------------
+
+export interface EmployeePayment {
+  id: string;
+  employeeId: string;
+  employeeName: string | null;
+  amount: number;
+  payPeriod: string; // first day of the month this payment covers, e.g. "2026-07-01"
+  paidOn: string;
+  proofUrl: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}

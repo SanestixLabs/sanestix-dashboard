@@ -1,9 +1,10 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
+import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
 import { formatCurrency } from "@/lib/utils";
 import { getSubscriptions } from "@/lib/supabase/queries";
-import { addSubscription, updateSubscriptionStatus } from "@/app/finance/actions";
+import { addSubscription, updateSubscriptionStatus, deleteSubscription } from "@/app/finance/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -161,13 +162,14 @@ export default async function SubscriptionsPage({
                   <th className="pb-2 pr-4">Renews</th>
                   <th className="pb-2 pr-4">Owner</th>
                   <th className="pb-2 pr-4 text-right">Cost</th>
-                  <th className="pb-2">Status</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {subscriptions.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={7} className="py-6 text-center text-on-surface-variant">
                       No subscriptions recorded yet.
                     </td>
                   </tr>
@@ -197,6 +199,17 @@ export default async function SubscriptionsPage({
                         ]}
                         action={updateSubscriptionStatus}
                       />
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex justify-end">
+                        <RegisterDeleteButton
+                          action={deleteSubscription}
+                          idFieldName="subscriptionId"
+                          idValue={s.id}
+                          redirectTo="/finance/subscriptions"
+                          label="subscription"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

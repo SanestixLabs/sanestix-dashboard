@@ -1,9 +1,10 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
+import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
 import { formatCurrency } from "@/lib/utils";
 import { getDebts } from "@/lib/supabase/queries";
-import { addDebt, updateDebtStatus } from "@/app/finance/actions";
+import { addDebt, updateDebtStatus, deleteDebt } from "@/app/finance/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -155,13 +156,14 @@ export default async function DebtsPage({
                   <th className="pb-2 pr-4 text-right">Principal</th>
                   <th className="pb-2 pr-4 text-right">Paid</th>
                   <th className="pb-2 pr-4 text-right">Remaining</th>
-                  <th className="pb-2">Status</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {debts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={7} className="py-6 text-center text-on-surface-variant">
                       No liabilities recorded yet.
                     </td>
                   </tr>
@@ -200,6 +202,17 @@ export default async function DebtsPage({
                         ]}
                         action={updateDebtStatus}
                       />
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex justify-end">
+                        <RegisterDeleteButton
+                          action={deleteDebt}
+                          idFieldName="debtId"
+                          idValue={d.id}
+                          redirectTo="/finance/debts"
+                          label="liability"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

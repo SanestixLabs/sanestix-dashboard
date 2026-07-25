@@ -2,8 +2,9 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { getInvoices } from "@/lib/supabase/queries";
-import { addInvoice, updateInvoiceStatus } from "@/app/finance/actions";
+import { addInvoice, updateInvoiceStatus, deleteInvoice } from "@/app/finance/actions";
 import { InvoiceStatusForm } from "@/components/finance/invoice-status-form";
+import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
 
 export const dynamic = "force-dynamic";
 
@@ -151,13 +152,14 @@ export default async function InvoicesPage({
                   <th className="pb-2 pr-4">Due date</th>
                   <th className="pb-2 pr-4">Status</th>
                   <th className="pb-2 pr-4">Logged by</th>
-                  <th className="pb-2 text-right">Amount</th>
+                  <th className="pb-2 pr-4 text-right">Amount</th>
+                  <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {invoices.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
                       No invoices yet.
                     </td>
                   </tr>
@@ -178,8 +180,19 @@ export default async function InvoicesPage({
                     <td className="py-2.5 pr-4 text-on-surface-variant">
                       {inv.createdByName ?? "—"}
                     </td>
-                    <td className="py-2.5 text-right font-mono-data text-on-surface">
+                    <td className="py-2.5 pr-4 text-right font-mono-data text-on-surface">
                       {formatCurrency(inv.amount)}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex justify-end">
+                        <RegisterDeleteButton
+                          action={deleteInvoice}
+                          idFieldName="invoiceId"
+                          idValue={inv.id}
+                          redirectTo="/finance/invoices"
+                          label="invoice"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
