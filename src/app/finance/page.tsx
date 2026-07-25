@@ -1,14 +1,14 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { KpiCardView } from "@/components/dashboard/kpi-card";
 import { RevenueTrendChart } from "@/components/dashboard/revenue-trend-chart";
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
-import { getFinanceData } from "@/lib/supabase/queries";
+import { UpcomingPayments } from "@/components/dashboard/upcoming-payments";
+import { getFinanceData, getUpcomingPayments } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function FinancePage() {
-  const data = await getFinanceData();
+  const [data, upcoming] = await Promise.all([getFinanceData(), getUpcomingPayments()]);
   const hasTrend = data.revenueTrend.length > 0;
 
   return (
@@ -20,13 +20,13 @@ export default async function FinancePage() {
         </p>
       </div>
 
-      <FinanceTabs />
-
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {data.kpis.map((kpi) => (
           <KpiCardView key={kpi.id} kpi={kpi} />
         ))}
       </div>
+
+      <UpcomingPayments due={upcoming.due} toReceive={upcoming.toReceive} />
 
       {hasTrend ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

@@ -1,5 +1,4 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { getProfitDistributions, getTotalOutstandingLoans } from "@/lib/supabase/queries";
@@ -30,8 +29,6 @@ export default async function ProfitSplitPage({
           charity → equal 3-way founder split.
         </p>
       </div>
-
-      <FinanceTabs />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Run a new distribution */}

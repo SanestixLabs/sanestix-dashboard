@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 
 export function FinanceRegisterPage({
@@ -30,8 +29,6 @@ export function FinanceRegisterPage({
           Add finance entry
         </Link>
       </div>
-
-      <FinanceTabs />
 
       <Card className="p-6">
         <CardTitle>Register Structure</CardTitle>

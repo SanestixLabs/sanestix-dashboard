@@ -11,6 +11,7 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/app/auth/actions";
@@ -22,6 +23,26 @@ const NAV_ITEMS = [
   { label: "CRM", icon: Users, href: "/crm" },
   { label: "Reports", icon: FileText, href: "/reports" },
   { label: "Settings", icon: Settings, href: "/settings" },
+];
+
+// Moved here from the old FinanceTabs bar at the top of every finance page —
+// now lives as a submenu under the Finance nav item instead.
+const FINANCE_SUB_ITEMS = [
+  { label: "Overview", href: "/finance" },
+  { label: "Income", href: "/finance/income" },
+  { label: "Expenses", href: "/finance/expenses" },
+  { label: "Transactions", href: "/finance/transactions" },
+  { label: "Invoices", href: "/finance/invoices" },
+  { label: "Investments", href: "/finance/investments" },
+  { label: "Reimbursements", href: "/finance/reimbursements" },
+  { label: "Founder Entry", href: "/finance/loans" },
+  { label: "Profit Split", href: "/finance/profit-split" },
+  { label: "Reports", href: "/finance/reports" },
+  { label: "Vendors", href: "/finance/vendors" },
+  { label: "Employees", href: "/finance/employees" },
+  { label: "Subscriptions", href: "/finance/subscriptions" },
+  { label: "Assets", href: "/finance/assets" },
+  { label: "Debts", href: "/finance/debts" },
 ];
 
 function getInitials(email?: string) {
@@ -53,20 +74,51 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
         <nav className="flex-1 space-y-1 px-3">
           {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const isFinance = label === "Finance";
+
             return (
-              <Link
-                key={label}
-                href={href}
-                className={cn(
-                  "group flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] font-medium transition-colors",
-                  active
-                    ? "border-l-2 border-primary bg-primary/[0.06] text-primary"
-                    : "border-l-2 border-transparent text-on-surface-variant hover:text-on-surface"
+              <div key={label}>
+                <Link
+                  href={href}
+                  className={cn(
+                    "group flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] font-medium transition-colors",
+                    active
+                      ? "border-l-2 border-primary bg-primary/[0.06] text-primary"
+                      : "border-l-2 border-transparent text-on-surface-variant hover:text-on-surface"
+                  )}
+                >
+                  <Icon size={17} strokeWidth={2} />
+                  <span className="flex-1">{label}</span>
+                  {isFinance && (
+                    <ChevronDown
+                      size={14}
+                      className={cn("transition-transform", active && "rotate-180")}
+                    />
+                  )}
+                </Link>
+
+                {isFinance && active && (
+                  <div className="ml-[26px] mt-1 space-y-0.5 border-l border-outline-variant pl-3">
+                    {FINANCE_SUB_ITEMS.map((tab) => {
+                      const tabActive = pathname === tab.href;
+                      return (
+                        <Link
+                          key={tab.href}
+                          href={tab.href}
+                          className={cn(
+                            "block px-2 py-1.5 font-mono-data text-[11px] uppercase tracking-wider transition-colors",
+                            tabActive
+                              ? "text-primary"
+                              : "text-on-surface-variant hover:text-on-surface"
+                          )}
+                        >
+                          {tab.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 )}
-              >
-                <Icon size={17} strokeWidth={2} />
-                <span>{label}</span>
-              </Link>
+              </div>
             );
           })}
         </nav>

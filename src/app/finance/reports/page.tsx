@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -91,8 +90,6 @@ export default async function FinanceReportsPage() {
           Export CSV
         </Link>
       </div>
-
-      <FinanceTabs />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[

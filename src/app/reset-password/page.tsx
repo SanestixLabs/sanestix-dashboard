@@ -1,10 +1,9 @@
-import Link from "next/link";
-import { signIn } from "@/app/auth/actions";
+import { updatePassword } from "@/app/auth/actions";
 
-export default async function LoginPage({
+export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string; redirectTo?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
 
@@ -15,17 +14,10 @@ export default async function LoginPage({
           <div className="mb-1 font-mono-data text-[11px] uppercase tracking-wider text-primary">
             Sanestix OS
           </div>
-          <h1 className="text-[24px] font-bold tracking-tight text-on-surface">Sign in</h1>
+          <h1 className="text-[24px] font-bold tracking-tight text-on-surface">Set a new password</h1>
         </div>
 
-        <form action={signIn} className="hairline space-y-4 border bg-surface p-6">
-          <input type="hidden" name="redirectTo" value={params.redirectTo ?? "/"} />
-
-          {params.message && (
-            <div className="border border-primary/30 bg-primary-tint px-3 py-2 text-[12px] text-primary">
-              {params.message}
-            </div>
-          )}
+        <form action={updatePassword} className="hairline space-y-4 border bg-surface p-6">
           {params.error && (
             <div className="border border-error/30 bg-error-tint px-3 py-2 text-[12px] text-error">
               {params.error}
@@ -34,32 +26,29 @@ export default async function LoginPage({
 
           <div>
             <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-              Email
+              New password
             </label>
-            <input
-              type="email"
-              name="email"
-              required
-              autoComplete="email"
-              className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-              placeholder="you@sanestix.com"
-            />
-          </div>
-
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Password
-              </label>
-              <Link href="/forgot-password" className="text-[11px] text-primary hover:underline">
-                Forgot password?
-              </Link>
-            </div>
             <input
               type="password"
               name="password"
               required
-              autoComplete="current-password"
+              minLength={8}
+              autoComplete="new-password"
+              className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
+              Confirm new password
+            </label>
+            <input
+              type="password"
+              name="confirmPassword"
+              required
+              minLength={8}
+              autoComplete="new-password"
               className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
               placeholder="••••••••"
             />
@@ -69,16 +58,17 @@ export default async function LoginPage({
             type="submit"
             className="w-full bg-primary px-4 py-2.5 font-mono-data text-[11px] font-medium uppercase tracking-wider text-on-primary transition hover:brightness-110 active:scale-95"
           >
-            Sign in
+            Update password
           </button>
-        </form>
 
-        <p className="mt-4 text-center text-[13px] text-on-surface-variant">
-          No account?{" "}
-          <Link href="/signup" className="text-primary hover:underline">
-            Create one
-          </Link>
-        </p>
+          <p className="text-center text-[11px] text-on-surface-variant">
+            This link is only valid if you got here from a password reset email. If it&apos;s expired,{" "}
+            <a href="/forgot-password" className="text-primary hover:underline">
+              request a new one
+            </a>
+            .
+          </p>
+        </form>
       </div>
     </div>
   );

@@ -49,9 +49,18 @@ export async function proxy(request: NextRequest) {
   }
 
   const path = request.nextUrl.pathname;
-  const isAuthRoute = path.startsWith("/login") || path.startsWith("/signup");
+  const isAuthRoute = path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/forgot-password");
+  // /reset-password is reached two ways: (1) an unauthenticated visitor who
+  // just clicked the recovery link — /auth/confirm verifies the OTP first
+  // and that grants a temporary session before they ever hit this route, so
+  // in practice they're never actually logged-out here; and (2) an
+  // already-logged-in user changing their password. Either way it must not
+  // bounce to /login (case 1, if the link ever gets visited pre-verification)
+  // or away as an "auth route" (case 2), so it's excluded from both checks
+  // below rather than folded into isAuthRoute.
+  const isResetPasswordRoute = path.startsWith("/reset-password");
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isResetPasswordRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirectTo", path);

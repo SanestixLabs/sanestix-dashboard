@@ -221,3 +221,21 @@ export interface Employee {
   createdByName: string | null;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Upcoming payments — combined view of money due out (debts, subscription
+// renewals) vs. money due in (unpaid invoices), for the Finance overview.
+// ---------------------------------------------------------------------------
+
+export type UpcomingPaymentDirection = "due" | "to_receive";
+export type UpcomingPaymentSource = "invoice" | "debt" | "subscription";
+
+export interface UpcomingPayment {
+  id: string;
+  direction: UpcomingPaymentDirection;
+  source: UpcomingPaymentSource;
+  label: string;
+  amount: number;
+  dueDate: string;
+  overdue: boolean;
+}

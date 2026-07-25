@@ -1,5 +1,4 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatCurrency } from "@/lib/utils";
@@ -46,8 +45,6 @@ export default async function TransactionsPage({
           Every revenue and expense entry behind the Overview KPIs, in PKR.
         </p>
       </div>
-
-      <FinanceTabs />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-4">

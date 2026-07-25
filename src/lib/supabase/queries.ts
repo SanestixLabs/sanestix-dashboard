@@ -14,6 +14,7 @@ import type {
   RevenuePoint,
   Subscription,
   Transaction,
+  UpcomingPayment,
   Vendor,
 } from "@/lib/types";
 
@@ -461,4 +462,96 @@ export async function getEmployees(): Promise<Employee[]> {
       createdAt: row.created_at,
     };
   });
+}
+
+/**
+ * Money due out (unpaid debts + upcoming subscription renewals) and money
+ * due in (unpaid invoices), merged into one sorted feed for the Finance
+ * overview's "Upcoming Payments" widget.
+ *
+ * Window: every overdue item, regardless of age, plus anything due within
+ * the next `withinDays` days (default 30) — so the widget stays useful
+ * without needing its own pagination.
+ */
+export async function getUpcomingPayments(withinDays = 30): Promise<{
+  due: UpcomingPayment[];
+  toReceive: UpcomingPayment[];
+}> {
+  const supabase = await createClient();
+
+  const [
+    { data: invoices, error: invError },
+    { data: debts, error: debtError },
+    { data: subscriptions, error: subError },
+  ] = await Promise.all([
+    supabase
+      .from("invoices")
+      .select("id, client_name, amount, status, due_date")
+      .in("status", ["outstanding", "overdue"]),
+    supabase
+      .from("debts")
+      .select("id, counterparty, principal, paid_amount, due_date, status")
+      .in("status", ["outstanding", "overdue"])
+      .not("due_date", "is", null),
+    supabase
+      .from("subscriptions")
+      .select("id, vendor_name, cost, renewal_date, status")
+      .eq("status", "active")
+      .not("renewal_date", "is", null),
+  ]);
+
+  if (invError) throw new Error(`Failed to load invoices: ${invError.message}`);
+  if (debtError) throw new Error(`Failed to load debts: ${debtError.message}`);
+  if (subError) throw new Error(`Failed to load subscriptions: ${subError.message}`);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const horizon = new Date(today);
+  horizon.setDate(horizon.getDate() + withinDays);
+
+  const inWindow = (isoDate: string) => new Date(isoDate) <= horizon; // overdue items are always < horizon too
+
+  const toReceive: UpcomingPayment[] = (invoices ?? [])
+    .filter((row) => inWindow(row.due_date))
+    .map((row) => ({
+      id: row.id,
+      direction: "to_receive" as const,
+      source: "invoice" as const,
+      label: row.client_name,
+      amount: Number(row.amount),
+      dueDate: row.due_date,
+      overdue: row.status === "overdue" || new Date(row.due_date) < today,
+    }));
+
+  const dueFromDebts: UpcomingPayment[] = (debts ?? [])
+    .filter((row) => row.due_date && inWindow(row.due_date))
+    .map((row) => ({
+      id: row.id,
+      direction: "due" as const,
+      source: "debt" as const,
+      label: row.counterparty,
+      amount: Number(row.principal) - Number(row.paid_amount),
+      dueDate: row.due_date as string,
+      overdue: row.status === "overdue" || new Date(row.due_date as string) < today,
+    }));
+
+  const dueFromSubscriptions: UpcomingPayment[] = (subscriptions ?? [])
+    .filter((row) => row.renewal_date && inWindow(row.renewal_date))
+    .map((row) => ({
+      id: row.id,
+      direction: "due" as const,
+      source: "subscription" as const,
+      label: `${row.vendor_name} renewal`,
+      amount: Number(row.cost),
+      dueDate: row.renewal_date as string,
+      overdue: new Date(row.renewal_date as string) < today,
+    }));
+
+  const byDueDateAsc = (a: UpcomingPayment, b: UpcomingPayment) =>
+    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+
+  return {
+    due: [...dueFromDebts, ...dueFromSubscriptions].sort(byDueDateAsc),
+    toReceive: toReceive.sort(byDueDateAsc),
+  };
 }

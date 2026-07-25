@@ -1,5 +1,4 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
 import { formatCurrency } from "@/lib/utils";
@@ -30,8 +29,6 @@ export default async function DebtsPage({
           Non-founder liabilities — vendor payables, taxes, credit cards, and external loans.
         </p>
       </div>
-
-      <FinanceTabs />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-4">

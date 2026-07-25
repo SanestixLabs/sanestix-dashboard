@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { LoanTable } from "@/components/finance/finance-ledger-table";
 import { formatCurrency } from "@/lib/utils";
@@ -34,8 +33,6 @@ export default async function ReimbursementsPage() {
           Add repayment
         </Link>
       </div>
-
-      <FinanceTabs />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-4">

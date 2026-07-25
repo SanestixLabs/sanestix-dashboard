@@ -1,5 +1,4 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FinanceTabs } from "@/components/layout/finance-tabs";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatCurrency } from "@/lib/utils";
@@ -30,8 +29,6 @@ export default async function LoanLedgerPage({
           Money founders have put in as a loan, and what&apos;s been paid back.
         </p>
       </div>
-
-      <FinanceTabs />
 
       {/* Outstanding balances per founder */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
