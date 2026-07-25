@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -58,6 +59,7 @@ function getInitials(email?: string) {
 
 export function Sidebar({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname();
+  const [financeExpanded, setFinanceExpanded] = useState(true);
 
   return (
     <>
@@ -96,12 +98,20 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
                   {isFinance && (
                     <ChevronDown
                       size={14}
-                      className={cn("transition-transform", active && "rotate-180")}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setFinanceExpanded((v) => !v);
+                      }}
+                      className={cn(
+                        "transition-transform duration-200 ease-out",
+                        financeExpanded && "rotate-180"
+                      )}
                     />
                   )}
                 </Link>
 
-                {isFinance && active && (
+                {isFinance && active && financeExpanded && (
                   <div className="ml-[26px] mt-1 space-y-0.5 border-l border-outline-variant pl-3">
                     {FINANCE_SUB_ITEMS.map((tab) => {
                       const tabActive = pathname === tab.href;
