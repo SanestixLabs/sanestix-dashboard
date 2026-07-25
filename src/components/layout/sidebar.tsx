@@ -71,7 +71,7 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
           </p>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3">
           {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             const isFinance = label === "Finance";
@@ -81,13 +81,17 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
                 <Link
                   href={href}
                   className={cn(
-                    "group flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] font-medium transition-colors",
+                    "group flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] font-medium transition-all duration-200 ease-out",
                     active
                       ? "border-l-2 border-primary bg-primary/[0.06] text-primary"
-                      : "border-l-2 border-transparent text-on-surface-variant hover:text-on-surface"
+                      : "border-l-2 border-transparent text-on-surface-variant hover:translate-x-0.5 hover:border-primary/40 hover:bg-primary/[0.04] hover:text-on-surface"
                   )}
                 >
-                  <Icon size={17} strokeWidth={2} />
+                  <Icon
+                    size={17}
+                    strokeWidth={2}
+                    className="transition-transform duration-200 ease-out group-hover:scale-110"
+                  />
                   <span className="flex-1">{label}</span>
                   {isFinance && (
                     <ChevronDown
@@ -106,10 +110,10 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
                           key={tab.href}
                           href={tab.href}
                           className={cn(
-                            "block px-2 py-1.5 font-mono-data text-[11px] uppercase tracking-wider transition-colors",
+                            "block px-2 py-1.5 font-mono-data text-[11px] uppercase tracking-wider transition-all duration-200 ease-out",
                             tabActive
                               ? "text-primary"
-                              : "text-on-surface-variant hover:text-on-surface"
+                              : "text-on-surface-variant hover:translate-x-0.5 hover:text-on-surface"
                           )}
                         >
                           {tab.label}
