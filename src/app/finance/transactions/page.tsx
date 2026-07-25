@@ -5,6 +5,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { formatCurrency } from "@/lib/utils";
 import { getTransactions } from "@/lib/supabase/queries";
 import { addTransaction } from "@/app/finance/actions";
+import { DeleteTransactionButton } from "@/components/finance/delete-transaction-button";
 
 const CATEGORY_SUGGESTIONS = [
   "client services",
@@ -186,13 +187,14 @@ export default async function TransactionsPage({
                   <th className="pb-2 pr-4">Category</th>
                   <th className="pb-2 pr-4">Note</th>
                   <th className="pb-2 pr-4">Logged by</th>
-                  <th className="pb-2 text-right">Amount</th>
+                  <th className="pb-2 pr-4 text-right">Amount</th>
+                  <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={7} className="py-6 text-center text-on-surface-variant">
                       No transactions yet.
                     </td>
                   </tr>
@@ -214,12 +216,20 @@ export default async function TransactionsPage({
                     </td>
                     <td
                       className={
-                        "py-2.5 text-right font-mono-data " +
+                        "py-2.5 pr-4 text-right font-mono-data " +
                         (t.kind === "revenue" ? "text-success" : "text-error")
                       }
                     >
                       {t.kind === "revenue" ? "+" : "-"}
                       {formatCurrency(t.amount)}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex justify-end">
+                        <DeleteTransactionButton
+                          transactionId={t.id}
+                          redirectTo="/finance/transactions"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

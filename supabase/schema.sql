@@ -188,3 +188,10 @@ create policy "Authenticated users can write profit_distributions"
 drop policy if exists "Authenticated users can update profit_distributions" on public.profit_distributions;
 create policy "Authenticated users can update profit_distributions"
   on public.profit_distributions for update to authenticated using (true);
+
+-- ---------------------------------------------------------------------------
+-- Delete support for the Finance Transactions/Income/Expenses "Delete" button.
+-- ---------------------------------------------------------------------------
+drop policy if exists "Authenticated users can delete transactions" on public.finance_transactions;
+create policy "Authenticated users can delete transactions"
+  on public.finance_transactions for delete to authenticated using (true);

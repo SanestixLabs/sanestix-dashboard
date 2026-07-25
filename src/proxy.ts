@@ -65,6 +65,21 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Finance module gate: signed-in users still need to confirm their
+  // account password once before entering /finance/*. The "finance_verified"
+  // cookie is set by verifyFinanceAccess() after a correct password, and is
+  // cleared on sign-out, so this re-prompts on every new login session.
+  const isFinanceRoute = path.startsWith("/finance");
+  const isFinanceVerifyRoute = path.startsWith("/finance/verify");
+  const financeVerified = request.cookies.get("finance_verified")?.value === "1";
+
+  if (user && isFinanceRoute && !isFinanceVerifyRoute && !financeVerified) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/finance/verify";
+    url.searchParams.set("redirectTo", path);
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 

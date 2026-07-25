@@ -1,13 +1,16 @@
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatCurrency } from "@/lib/utils";
 import type { LoanEntry, Transaction } from "@/lib/types";
+import { DeleteTransactionButton } from "@/components/finance/delete-transaction-button";
 
 export function TransactionTable({
   transactions,
   emptyLabel,
+  redirectTo = "/finance/transactions",
 }: {
   transactions: Transaction[];
   emptyLabel: string;
+  redirectTo?: string;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -19,13 +22,14 @@ export function TransactionTable({
             <th className="pb-2 pr-4">Category</th>
             <th className="pb-2 pr-4">Description</th>
             <th className="pb-2 pr-4">Logged by</th>
-            <th className="pb-2 text-right">Amount</th>
+            <th className="pb-2 pr-4 text-right">Amount</th>
+            <th className="pb-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {transactions.length === 0 && (
             <tr>
-              <td colSpan={6} className="py-6 text-center text-on-surface-variant">
+              <td colSpan={7} className="py-6 text-center text-on-surface-variant">
                 {emptyLabel}
               </td>
             </tr>
@@ -51,12 +55,17 @@ export function TransactionTable({
               </td>
               <td
                 className={
-                  "py-2.5 text-right font-mono-data " +
+                  "py-2.5 pr-4 text-right font-mono-data " +
                   (transaction.kind === "revenue" ? "text-success" : "text-error")
                 }
               >
                 {transaction.kind === "revenue" ? "+" : "-"}
                 {formatCurrency(transaction.amount)}
+              </td>
+              <td className="py-2.5 text-right">
+                <div className="flex justify-end">
+                  <DeleteTransactionButton transactionId={transaction.id} redirectTo={redirectTo} />
+                </div>
               </td>
             </tr>
           ))}

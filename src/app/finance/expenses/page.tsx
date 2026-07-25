@@ -9,7 +9,12 @@ import { getTransactions } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
   const expenses = (await getTransactions()).filter((transaction) => transaction.kind === "expense");
   const total = expenses.reduce((sum, transaction) => sum + transaction.amount, 0);
   const paidBySaad = expenses
@@ -18,6 +23,12 @@ export default async function ExpensesPage() {
 
   return (
     <DashboardShell breadcrumb={["Sanestix OS", "Finance", "Expenses"]}>
+      {params.error && (
+        <div className="border border-error/30 bg-error-tint px-3 py-2 text-[12px] text-error">
+          {params.error}
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-[28px] font-bold tracking-tight text-on-surface">Expenses</h1>
@@ -65,7 +76,11 @@ export default async function ExpensesPage() {
         <CardTitle>Expense Ledger</CardTitle>
         <CardDescription>All company expenses, newest first.</CardDescription>
         <div className="mt-4">
-          <TransactionTable transactions={expenses} emptyLabel="No expense entries yet." />
+          <TransactionTable
+            transactions={expenses}
+            emptyLabel="No expense entries yet."
+            redirectTo="/finance/expenses"
+          />
         </div>
       </Card>
     </DashboardShell>

@@ -9,13 +9,24 @@ import { getTransactions } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function IncomePage() {
+export default async function IncomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
   const income = (await getTransactions()).filter((transaction) => transaction.kind === "revenue");
   const total = income.reduce((sum, transaction) => sum + transaction.amount, 0);
   const sourceCount = new Set(income.map((transaction) => transaction.category ?? "uncategorized")).size;
 
   return (
     <DashboardShell breadcrumb={["Sanestix OS", "Finance", "Income"]}>
+      {params.error && (
+        <div className="border border-error/30 bg-error-tint px-3 py-2 text-[12px] text-error">
+          {params.error}
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-[28px] font-bold tracking-tight text-on-surface">Income</h1>
@@ -61,7 +72,11 @@ export default async function IncomePage() {
         <CardTitle>Income Register</CardTitle>
         <CardDescription>All recorded inflows, newest first.</CardDescription>
         <div className="mt-4">
-          <TransactionTable transactions={income} emptyLabel="No income entries yet." />
+          <TransactionTable
+            transactions={income}
+            emptyLabel="No income entries yet."
+            redirectTo="/finance/income"
+          />
         </div>
       </Card>
     </DashboardShell>
