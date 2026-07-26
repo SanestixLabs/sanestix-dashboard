@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { recordActivity } from "@/lib/audit";
+import { formatCurrency } from "@/lib/utils";
 
 export async function addTransaction(formData: FormData) {
   const kind = String(formData.get("kind") ?? "");
@@ -21,18 +23,34 @@ export async function addTransaction(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("finance_transactions").insert({
-    kind,
-    category,
-    amount,
-    occurred_on: occurredOn,
-    note,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("finance_transactions")
+    .insert({
+      kind,
+      category,
+      amount,
+      occurred_on: occurredOn,
+      note,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/transactions?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "finance_transactions",
+    entityId: inserted?.id ?? null,
+    summary: `${kind === "revenue" ? "Income" : "Expense"} of ${formatCurrency(amount)}${category ? ` (${category})` : ""} recorded`,
+    notify: true,
+    notifyLink: "/finance/transactions",
+  });
 
   revalidatePath("/finance/transactions");
   revalidatePath("/finance");
@@ -70,11 +88,31 @@ export async function deleteTransaction(formData: FormData) {
     redirect(`${redirectTo}?error=${encodeURIComponent("Incorrect password. Transaction was not deleted.")}`);
   }
 
+  const { data: existing } = await supabase
+    .from("finance_transactions")
+    .select("kind, amount, category")
+    .eq("id", transactionId)
+    .maybeSingle();
+
   const { error } = await supabase.from("finance_transactions").delete().eq("id", transactionId);
 
   if (error) {
     redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "finance_transactions",
+    entityId: transactionId,
+    summary: existing
+      ? `${existing.kind === "revenue" ? "Income" : "Expense"} of ${formatCurrency(existing.amount)}${existing.category ? ` (${existing.category})` : ""} deleted`
+      : "Transaction deleted",
+    notify: true,
+    notifyLink: "/finance/transactions",
+  });
 
   revalidatePath("/finance/transactions");
   revalidatePath("/finance/income");
@@ -150,17 +188,33 @@ export async function addInvoice(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("invoices").insert({
-    client_name: clientName,
-    amount,
-    status,
-    due_date: dueDate,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("invoices")
+    .insert({
+      client_name: clientName,
+      amount,
+      status,
+      due_date: dueDate,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/invoices?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "invoices",
+    entityId: inserted?.id ?? null,
+    summary: `Invoice for ${clientName} (${formatCurrency(amount)}) created`,
+    notify: true,
+    notifyLink: "/finance/invoices",
+  });
 
   revalidatePath("/finance/invoices");
   revalidatePath("/finance");
@@ -176,11 +230,35 @@ export async function updateInvoiceStatus(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("invoices")
+    .select("client_name, amount")
+    .eq("id", invoiceId)
+    .maybeSingle();
+
   const { error } = await supabase.from("invoices").update({ status }).eq("id", invoiceId);
 
   if (error) {
     redirect(`/finance/invoices?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "invoices",
+    entityId: invoiceId,
+    summary: existing
+      ? `Invoice for ${existing.client_name} (${formatCurrency(existing.amount)}) marked ${status}`
+      : `Invoice marked ${status}`,
+    notify: status === "paid" || status === "overdue",
+    notifyLink: "/finance/invoices",
+  });
 
   revalidatePath("/finance/invoices");
   revalidatePath("/finance");
@@ -203,18 +281,34 @@ export async function addLoanEntry(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("founder_loans").insert({
-    founder_id: founderId,
-    direction,
-    amount,
-    occurred_on: occurredOn,
-    description,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("founder_loans")
+    .insert({
+      founder_id: founderId,
+      direction,
+      amount,
+      occurred_on: occurredOn,
+      description,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/loans?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "founder_loans",
+    entityId: inserted?.id ?? null,
+    summary: `${direction === "loan_in" ? "Founder loan" : "Loan repayment"} of ${formatCurrency(amount)} recorded`,
+    notify: true,
+    notifyLink: "/finance/loans",
+  });
 
   revalidatePath("/finance/loans");
   redirect("/finance/loans");
@@ -241,22 +335,38 @@ export async function addProfitDistribution(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("profit_distributions").insert({
-    period_month: `${periodMonth}-01`,
-    gross_profit: grossProfit,
-    capital_reserve: capitalReserve,
-    loan_repayment: loanRepayment,
-    distributable_profit: distributable,
-    charity_pct: charityPct,
-    charity_amount: charityAmount,
-    per_founder_amount: perFounderAmount,
-    note,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("profit_distributions")
+    .insert({
+      period_month: `${periodMonth}-01`,
+      gross_profit: grossProfit,
+      capital_reserve: capitalReserve,
+      loan_repayment: loanRepayment,
+      distributable_profit: distributable,
+      charity_pct: charityPct,
+      charity_amount: charityAmount,
+      per_founder_amount: perFounderAmount,
+      note,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/profit-split?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "profit_distributions",
+    entityId: inserted?.id ?? null,
+    summary: `Profit split for ${periodMonth} created (${formatCurrency(distributable)} distributable)`,
+    notify: true,
+    notifyLink: "/finance/profit-split",
+  });
 
   revalidatePath("/finance/profit-split");
   redirect("/finance/profit-split");
@@ -283,19 +393,34 @@ export async function addVendor(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("vendors").insert({
-    name,
-    category,
-    contact_person: contactPerson,
-    contact_email: contactEmail,
-    payment_terms: paymentTerms,
-    status,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("vendors")
+    .insert({
+      name,
+      category,
+      contact_person: contactPerson,
+      contact_email: contactEmail,
+      payment_terms: paymentTerms,
+      status,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/vendors?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "vendors",
+    entityId: inserted?.id ?? null,
+    summary: `Vendor "${name}" added`,
+    notifyLink: "/finance/vendors",
+  });
 
   revalidatePath("/finance/vendors");
   redirect("/finance/vendors");
@@ -310,11 +435,32 @@ export async function updateVendorStatus(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("vendors")
+    .select("name")
+    .eq("id", vendorId)
+    .maybeSingle();
+
   const { error } = await supabase.from("vendors").update({ status }).eq("id", vendorId);
 
   if (error) {
     redirect(`/finance/vendors?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "vendors",
+    entityId: vendorId,
+    summary: `Vendor "${existing?.name ?? vendorId}" marked ${status}`,
+    notifyLink: "/finance/vendors",
+  });
 
   revalidatePath("/finance/vendors");
   redirect("/finance/vendors");
@@ -337,19 +483,34 @@ export async function addSubscription(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("subscriptions").insert({
-    vendor_name: vendorName,
-    cost,
-    billing_cycle: billingCycle,
-    renewal_date: renewalDate,
-    owner,
-    status,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("subscriptions")
+    .insert({
+      vendor_name: vendorName,
+      cost,
+      billing_cycle: billingCycle,
+      renewal_date: renewalDate,
+      owner,
+      status,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/subscriptions?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "subscriptions",
+    entityId: inserted?.id ?? null,
+    summary: `Subscription "${vendorName}" (${formatCurrency(cost)}/${billingCycle}) added`,
+    notifyLink: "/finance/subscriptions",
+  });
 
   revalidatePath("/finance/subscriptions");
   redirect("/finance/subscriptions");
@@ -364,6 +525,16 @@ export async function updateSubscriptionStatus(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("subscriptions")
+    .select("vendor_name")
+    .eq("id", subscriptionId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("subscriptions")
     .update({ status })
@@ -372,6 +543,17 @@ export async function updateSubscriptionStatus(formData: FormData) {
   if (error) {
     redirect(`/finance/subscriptions?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "subscriptions",
+    entityId: subscriptionId,
+    summary: `Subscription "${existing?.vendor_name ?? subscriptionId}" marked ${status}`,
+    notifyLink: "/finance/subscriptions",
+  });
 
   revalidatePath("/finance/subscriptions");
   redirect("/finance/subscriptions");
@@ -399,19 +581,34 @@ export async function addAsset(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("assets").insert({
-    name,
-    purchase_date: purchaseDate,
-    cost,
-    owner,
-    condition,
-    serial_number: serialNumber,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("assets")
+    .insert({
+      name,
+      purchase_date: purchaseDate,
+      cost,
+      owner,
+      condition,
+      serial_number: serialNumber,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/assets?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "assets",
+    entityId: inserted?.id ?? null,
+    summary: `Asset "${name}" (${formatCurrency(cost)}) added`,
+    notifyLink: "/finance/assets",
+  });
 
   revalidatePath("/finance/assets");
   redirect("/finance/assets");
@@ -426,11 +623,32 @@ export async function updateAssetCondition(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("assets")
+    .select("name")
+    .eq("id", assetId)
+    .maybeSingle();
+
   const { error } = await supabase.from("assets").update({ condition }).eq("id", assetId);
 
   if (error) {
     redirect(`/finance/assets?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "assets",
+    entityId: assetId,
+    summary: `Asset "${existing?.name ?? assetId}" condition set to ${condition}`,
+    notifyLink: "/finance/assets",
+  });
 
   revalidatePath("/finance/assets");
   redirect("/finance/assets");
@@ -452,18 +670,34 @@ export async function addDebt(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("debts").insert({
-    counterparty,
-    principal,
-    paid_amount: paidAmount,
-    due_date: dueDate,
-    status,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("debts")
+    .insert({
+      counterparty,
+      principal,
+      paid_amount: paidAmount,
+      due_date: dueDate,
+      status,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/debts?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "debts",
+    entityId: inserted?.id ?? null,
+    summary: `Debt with ${counterparty} (${formatCurrency(principal)}) added`,
+    notify: true,
+    notifyLink: "/finance/debts",
+  });
 
   revalidatePath("/finance/debts");
   redirect("/finance/debts");
@@ -478,11 +712,33 @@ export async function updateDebtStatus(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("debts")
+    .select("counterparty")
+    .eq("id", debtId)
+    .maybeSingle();
+
   const { error } = await supabase.from("debts").update({ status }).eq("id", debtId);
 
   if (error) {
     redirect(`/finance/debts?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "debts",
+    entityId: debtId,
+    summary: `Debt with ${existing?.counterparty ?? debtId} marked ${status}`,
+    notify: status === "paid",
+    notifyLink: "/finance/debts",
+  });
 
   revalidatePath("/finance/debts");
   redirect("/finance/debts");
@@ -511,19 +767,34 @@ export async function addEmployee(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("employees").insert({
-    full_name: fullName,
-    role,
-    salary,
-    start_date: startDate,
-    status,
-    pay_day: payDay,
-    created_by: user?.id ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("employees")
+    .insert({
+      full_name: fullName,
+      role,
+      salary,
+      start_date: startDate,
+      status,
+      pay_day: payDay,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/employees?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "employees",
+    entityId: inserted?.id ?? null,
+    summary: `Employee "${fullName}" added`,
+    notifyLink: "/finance/employees",
+  });
 
   revalidatePath("/finance/employees");
   redirect("/finance/employees");
@@ -538,11 +809,32 @@ export async function updateEmployeeStatus(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("employees")
+    .select("full_name")
+    .eq("id", employeeId)
+    .maybeSingle();
+
   const { error } = await supabase.from("employees").update({ status }).eq("id", employeeId);
 
   if (error) {
     redirect(`/finance/employees?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "employees",
+    entityId: employeeId,
+    summary: `Employee "${existing?.full_name ?? employeeId}" marked ${status}`,
+    notifyLink: "/finance/employees",
+  });
 
   revalidatePath("/finance/employees");
   redirect("/finance/employees");
@@ -556,7 +848,7 @@ export async function updateEmployeeStatus(formData: FormData) {
 async function confirmPasswordOrRedirect(
   password: string,
   redirectTo: string
-): Promise<Awaited<ReturnType<typeof createClient>>> {
+): Promise<{ supabase: Awaited<ReturnType<typeof createClient>>; user: { id: string; email: string } }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -578,7 +870,7 @@ async function confirmPasswordOrRedirect(
     redirect(`${redirectTo}?error=${encodeURIComponent("Incorrect password. Nothing was deleted.")}`);
   }
 
-  return supabase;
+  return { supabase, user: { id: user.id, email: user.email } };
 }
 
 export async function deleteVendor(formData: FormData) {
@@ -588,10 +880,23 @@ export async function deleteVendor(formData: FormData) {
 
   if (!vendorId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing vendor id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase.from("vendors").select("name").eq("id", vendorId).maybeSingle();
   const { error } = await supabase.from("vendors").delete().eq("id", vendorId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "vendors",
+    entityId: vendorId,
+    summary: `Vendor "${existing?.name ?? vendorId}" deleted`,
+    notify: true,
+    notifyLink: "/finance/vendors",
+  });
 
   revalidatePath("/finance/vendors");
   redirect(redirectTo);
@@ -605,10 +910,27 @@ export async function deleteSubscription(formData: FormData) {
   if (!subscriptionId)
     redirect(`${redirectTo}?error=${encodeURIComponent("Missing subscription id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase
+    .from("subscriptions")
+    .select("vendor_name")
+    .eq("id", subscriptionId)
+    .maybeSingle();
   const { error } = await supabase.from("subscriptions").delete().eq("id", subscriptionId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "subscriptions",
+    entityId: subscriptionId,
+    summary: `Subscription "${existing?.vendor_name ?? subscriptionId}" deleted`,
+    notify: true,
+    notifyLink: "/finance/subscriptions",
+  });
 
   revalidatePath("/finance/subscriptions");
   revalidatePath("/finance");
@@ -622,10 +944,23 @@ export async function deleteAsset(formData: FormData) {
 
   if (!assetId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing asset id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase.from("assets").select("name").eq("id", assetId).maybeSingle();
   const { error } = await supabase.from("assets").delete().eq("id", assetId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "assets",
+    entityId: assetId,
+    summary: `Asset "${existing?.name ?? assetId}" deleted`,
+    notify: true,
+    notifyLink: "/finance/assets",
+  });
 
   revalidatePath("/finance/assets");
   redirect(redirectTo);
@@ -638,10 +973,27 @@ export async function deleteDebt(formData: FormData) {
 
   if (!debtId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing debt id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase
+    .from("debts")
+    .select("counterparty")
+    .eq("id", debtId)
+    .maybeSingle();
   const { error } = await supabase.from("debts").delete().eq("id", debtId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "debts",
+    entityId: debtId,
+    summary: `Debt with ${existing?.counterparty ?? debtId} deleted`,
+    notify: true,
+    notifyLink: "/finance/debts",
+  });
 
   revalidatePath("/finance/debts");
   revalidatePath("/finance");
@@ -655,10 +1007,29 @@ export async function deleteInvoice(formData: FormData) {
 
   if (!invoiceId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing invoice id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase
+    .from("invoices")
+    .select("client_name, amount")
+    .eq("id", invoiceId)
+    .maybeSingle();
   const { error } = await supabase.from("invoices").delete().eq("id", invoiceId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "invoices",
+    entityId: invoiceId,
+    summary: existing
+      ? `Invoice for ${existing.client_name} (${formatCurrency(existing.amount)}) deleted`
+      : "Invoice deleted",
+    notify: true,
+    notifyLink: "/finance/invoices",
+  });
 
   revalidatePath("/finance/invoices");
   revalidatePath("/finance");
@@ -672,10 +1043,27 @@ export async function deleteEmployee(formData: FormData) {
 
   if (!employeeId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing employee id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase
+    .from("employees")
+    .select("full_name")
+    .eq("id", employeeId)
+    .maybeSingle();
   const { error } = await supabase.from("employees").delete().eq("id", employeeId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "employees",
+    entityId: employeeId,
+    summary: `Employee "${existing?.full_name ?? employeeId}" deleted`,
+    notify: true,
+    notifyLink: "/finance/employees",
+  });
 
   revalidatePath("/finance/employees");
   revalidatePath("/finance");
@@ -729,18 +1117,40 @@ export async function markSalaryPaid(formData: FormData) {
     proofUrl = supabase.storage.from("payment-proofs").getPublicUrl(path).data.publicUrl;
   }
 
-  const { error } = await supabase.from("employee_payments").insert({
-    employee_id: employeeId,
-    amount,
-    pay_period: `${payPeriodRaw}-01`,
-    proof_url: proofUrl,
-    notes,
-    created_by: user?.id ?? null,
-  });
+  const { data: employeeRow } = await supabase
+    .from("employees")
+    .select("full_name")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  const { data: inserted, error } = await supabase
+    .from("employee_payments")
+    .insert({
+      employee_id: employeeId,
+      amount,
+      pay_period: `${payPeriodRaw}-01`,
+      proof_url: proofUrl,
+      notes,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     redirect(`/finance/employees?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "insert",
+    entity: "employee_payments",
+    entityId: inserted?.id ?? null,
+    summary: `Salary of ${formatCurrency(amount)} paid to ${employeeRow?.full_name ?? "employee"} for ${payPeriodRaw}`,
+    notify: true,
+    notifyLink: "/finance/employees",
+  });
 
   revalidatePath("/finance/employees");
   revalidatePath("/finance");
@@ -754,10 +1164,40 @@ export async function deleteEmployeePayment(formData: FormData) {
 
   if (!paymentId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing payment id")}`);
 
-  const supabase = await confirmPasswordOrRedirect(password, redirectTo);
+  const { supabase, user } = await confirmPasswordOrRedirect(password, redirectTo);
+  const { data: existing } = await supabase
+    .from("employee_payments")
+    .select("amount, pay_period, employee_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  let employeeName: string | null = null;
+  if (existing?.employee_id) {
+    const { data: employeeRow } = await supabase
+      .from("employees")
+      .select("full_name")
+      .eq("id", existing.employee_id)
+      .maybeSingle();
+    employeeName = employeeRow?.full_name ?? null;
+  }
+
   const { error } = await supabase.from("employee_payments").delete().eq("id", paymentId);
 
   if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "delete",
+    entity: "employee_payments",
+    entityId: paymentId,
+    summary: existing
+      ? `Salary payment of ${formatCurrency(existing.amount)} to ${employeeName ?? "employee"} deleted`
+      : "Salary payment deleted",
+    notify: true,
+    notifyLink: "/finance/employees",
+  });
 
   revalidatePath("/finance/employees");
   revalidatePath("/finance");
@@ -777,6 +1217,16 @@ export async function updateEmployeePayDay(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existing } = await supabase
+    .from("employees")
+    .select("full_name")
+    .eq("id", employeeId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("employees")
     .update({ pay_day: payDay })
@@ -785,6 +1235,17 @@ export async function updateEmployeePayDay(formData: FormData) {
   if (error) {
     redirect(`/finance/employees?error=${encodeURIComponent(error.message)}`);
   }
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "employees",
+    entityId: employeeId,
+    summary: `Payday for "${existing?.full_name ?? employeeId}" set to day ${payDay ?? "(cleared)"}`,
+    notifyLink: "/finance/employees",
+  });
 
   revalidatePath("/finance/employees");
   revalidatePath("/finance");
