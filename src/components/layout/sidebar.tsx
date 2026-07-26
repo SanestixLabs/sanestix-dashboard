@@ -15,7 +15,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { signOut } from "@/app/auth/actions";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -82,8 +82,17 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
               <div key={label}>
                 <Link
                   href={href}
-                  onClick={() => {
-                    if (isFinance) setFinanceExpanded(true);
+                  onClick={(e) => {
+                    if (!isFinance) return;
+                    if (active) {
+                      // Already on a Finance page: clicking anywhere on the
+                      // row just toggles the submenu open/closed.
+                      e.preventDefault();
+                      setFinanceExpanded((v) => !v);
+                    } else {
+                      // Navigating into Finance for the first time: open it.
+                      setFinanceExpanded(true);
+                    }
                   }}
                   className={cn(
                     "group flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] font-medium transition-all duration-200 ease-out",
@@ -101,11 +110,6 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
                   {isFinance && (
                     <ChevronDown
                       size={14}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setFinanceExpanded((v) => !v);
-                      }}
                       className={cn(
                         "transition-transform duration-200 ease-out",
                         financeExpanded && "rotate-180"
@@ -148,15 +152,10 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
             <HelpCircle size={15} />
             Help
           </Link>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="flex w-full items-center gap-3 px-3 py-2 text-[11px] font-mono-data uppercase tracking-wider text-on-surface-variant hover:text-error"
-            >
-              <LogOut size={15} />
-              Sign out
-            </button>
-          </form>
+          <LogoutButton className="flex w-full items-center gap-3 px-3 py-2 text-[11px] font-mono-data uppercase tracking-wider text-on-surface-variant hover:text-error">
+            <LogOut size={15} />
+            Sign out
+          </LogoutButton>
 
           <div className="mt-3 flex items-center justify-between border border-outline-variant bg-background px-3 py-2.5">
             <div className="flex min-w-0 items-center gap-2.5">

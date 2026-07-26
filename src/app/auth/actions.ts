@@ -49,6 +49,17 @@ export async function signOut() {
   redirect("/login");
 }
 
+// Same as signOut(), but triggered client-side by InactivityMonitor after a
+// period of no mouse/keyboard/touch/scroll activity, so the user lands back
+// on /login with an explanation instead of a bare form.
+export async function signOutInactive() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete("finance_verified");
+  redirect(`/login?message=${encodeURIComponent("You were signed out due to inactivity.")}`);
+}
+
 // Step 1 of "forgot password": email a recovery link. Always redirects to the
 // same "check your email" message regardless of whether the address exists,
 // so this can't be used to enumerate registered emails.

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Search, Bell, ChevronRight, LogOut } from "lucide-react";
-import { signOut } from "@/app/auth/actions";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 export function Topbar({
   breadcrumb,
@@ -60,15 +60,12 @@ export function Topbar({
             {userEmail}
           </span>
         )}
-        <form action={signOut}>
-          <button
-            type="submit"
-            title="Sign out"
-            className="p-1 text-on-surface-variant transition-colors hover:text-primary"
-          >
-            <LogOut size={16} />
-          </button>
-        </form>
+        <LogoutButton
+          title="Sign out"
+          className="p-1 text-on-surface-variant transition-colors hover:text-primary"
+        >
+          <LogOut size={16} />
+        </LogoutButton>
         <Link
           href="/finance/transactions"
           className="hidden bg-primary px-4 py-1.5 text-[11px] font-mono-data font-medium uppercase tracking-wider text-on-primary transition hover:brightness-110 active:scale-95 sm:block"

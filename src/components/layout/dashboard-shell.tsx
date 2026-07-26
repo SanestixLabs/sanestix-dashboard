@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { createClient } from "@/lib/supabase/server";
+import { InactivityMonitor } from "@/components/auth/inactivity-monitor";
 
 export async function DashboardShell({
   breadcrumb,
@@ -16,6 +17,7 @@ export async function DashboardShell({
 
   return (
     <div className="min-h-screen bg-background">
+      <InactivityMonitor />
       <Sidebar userEmail={user?.email} />
       <Topbar breadcrumb={breadcrumb} userEmail={user?.email} />
       <main className="min-h-screen pt-16 pb-20 lg:ml-[248px] lg:pb-0">

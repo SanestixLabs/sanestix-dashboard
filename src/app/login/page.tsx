@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signIn } from "@/app/auth/actions";
+import { PasswordInput } from "@/components/auth/password-input";
 
 export default async function LoginPage({
   searchParams,
@@ -55,14 +56,7 @@ export default async function LoginPage({
                 Forgot password?
               </Link>
             </div>
-            <input
-              type="password"
-              name="password"
-              required
-              autoComplete="current-password"
-              className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-              placeholder="••••••••"
-            />
+            <PasswordInput />
           </div>
 
           <button

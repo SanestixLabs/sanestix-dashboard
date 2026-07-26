@@ -61,9 +61,23 @@ export async function proxy(request: NextRequest) {
   const isResetPasswordRoute = path.startsWith("/reset-password");
 
   if (!user && !isAuthRoute && !isResetPasswordRoute) {
+    // A Supabase auth cookie was present but getUser() still came back
+    // empty — the session existed and expired/was revoked, as opposed to
+    // this being a visitor who was never logged in. Worth telling them why
+    // they're suddenly looking at the login page again.
+    const hadSessionCookie = request.cookies
+      .getAll()
+      .some((c) => c.name.includes("-auth-token"));
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirectTo", path);
+    if (hadSessionCookie) {
+      url.searchParams.set(
+        "message",
+        "Your session has expired. Please sign in again."
+      );
+    }
     return NextResponse.redirect(url);
   }
 
