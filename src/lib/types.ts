@@ -80,6 +80,7 @@ export interface Transaction {
   category: string | null;
   amount: number;
   note: string | null;
+  proofUrl: string | null;
   createdByName: string | null;
 }
 
@@ -91,6 +92,7 @@ export interface Invoice {
   amount: number;
   status: InvoiceStatus;
   dueDate: string;
+  proofUrl: string | null;
   createdByName: string | null;
 }
 
@@ -174,6 +176,7 @@ export interface Subscription {
   owner: string | null;
   status: SubscriptionStatus;
   notes: string | null;
+  proofUrl: string | null;
   createdByName: string | null;
   createdAt: string;
 }
@@ -189,6 +192,7 @@ export interface Asset {
   condition: AssetCondition;
   serialNumber: string | null;
   notes: string | null;
+  proofUrl: string | null;
   createdByName: string | null;
   createdAt: string;
 }
@@ -204,6 +208,7 @@ export interface Debt {
   dueDate: string | null;
   status: DebtStatus;
   notes: string | null;
+  proofUrl: string | null;
   createdByName: string | null;
   createdAt: string;
 }

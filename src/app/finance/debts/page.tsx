@@ -59,7 +59,7 @@ export default async function DebtsPage({
           <CardTitle>Add a liability</CardTitle>
           <CardDescription>Record a new debt or payable.</CardDescription>
 
-          <form action={addDebt} className="mt-4 space-y-3">
+          <form action={addDebt} encType="multipart/form-data" className="mt-4 space-y-3">
             {params.error && (
               <div className="border border-error/30 bg-error-tint px-3 py-2 text-[12px] text-error">
                 {params.error}
@@ -134,6 +134,21 @@ export default async function DebtsPage({
               </select>
             </div>
 
+            <div>
+              <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
+                Proof (optional)
+              </label>
+              <input
+                type="file"
+                name="proof"
+                accept="image/*,application/pdf"
+                className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[12px] file:mr-3 file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:font-mono-data file:text-[11px] file:uppercase file:tracking-wider file:text-primary focus:border-primary focus:outline-none"
+              />
+              <p className="mt-1 text-[10px] text-on-surface-variant/70">
+                Agreement, statement, or receipt. Image or PDF, up to 5MB.
+              </p>
+            </div>
+
             <button
               type="submit"
               className="w-full bg-primary px-4 py-2.5 font-mono-data text-[11px] font-medium uppercase tracking-wider text-on-primary transition hover:brightness-110 active:scale-95"
@@ -148,7 +163,7 @@ export default async function DebtsPage({
           <CardDescription>Soonest due date first.</CardDescription>
 
           <div className="mt-4 max-h-[560px] overflow-auto">
-            <table className="w-full min-w-[760px] text-left text-[13px]">
+            <table className="w-full min-w-[820px] text-left text-[13px]">
               <thead className="sticky top-0 bg-surface">
                 <tr className="border-b border-outline-variant text-[10px] font-mono-data uppercase tracking-widest text-on-surface-variant/70">
                   <th className="pb-2 pr-4">Counterparty</th>
@@ -157,13 +172,14 @@ export default async function DebtsPage({
                   <th className="pb-2 pr-4 text-right">Paid</th>
                   <th className="pb-2 pr-4 text-right">Remaining</th>
                   <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2 pr-4">Proof</th>
                   <th className="pb-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {debts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-on-surface-variant">
+                    <td colSpan={8} className="py-6 text-center text-on-surface-variant">
                       No liabilities recorded yet.
                     </td>
                   </tr>
@@ -183,7 +199,7 @@ export default async function DebtsPage({
                     <td className="py-2.5 pr-4 text-right font-mono-data text-error">
                       {formatCurrency(d.remainingBalance)}
                     </td>
-                    <td className="py-2.5">
+                    <td className="py-2.5 pr-4">
                       <RegisterStatusForm
                         idFieldName="debtId"
                         idValue={d.id}
@@ -202,6 +218,20 @@ export default async function DebtsPage({
                         ]}
                         action={updateDebtStatus}
                       />
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      {d.proofUrl ? (
+                        <a
+                          href={d.proofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono-data text-[11px] uppercase tracking-wider text-primary hover:underline"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-on-surface-variant">—</span>
+                      )}
                     </td>
                     <td className="py-2.5 text-right">
                       <div className="flex justify-end">

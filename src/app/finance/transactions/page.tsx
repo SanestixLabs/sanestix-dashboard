@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getTransactions } from "@/lib/supabase/queries";
 import { addTransaction } from "@/app/finance/actions";
 import { DeleteTransactionButton } from "@/components/finance/delete-transaction-button";
+import { ActivityLog } from "@/components/finance/activity-log";
 
 const CATEGORY_SUGGESTIONS = [
   "client services",
@@ -234,6 +235,12 @@ export default async function TransactionsPage({
             </table>
           </div>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-start-2 lg:col-span-2">
+          <ActivityLog entity="finance_transactions" title="Transaction activity" />
+        </div>
       </div>
     </DashboardShell>
   );

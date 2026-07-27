@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
   HelpCircle,
   LogOut,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -60,6 +61,16 @@ function getInitials(email?: string) {
 export function Sidebar({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname();
   const [financeExpanded, setFinanceExpanded] = useState(true);
+  const [mobileFinanceOpen, setMobileFinanceOpen] = useState(false);
+
+  const financeActive = pathname === "/finance" || pathname.startsWith("/finance/");
+
+  // Close the mobile drawer if the user navigates away from Finance
+  // entirely (e.g. via the desktop sidebar in a resized window, or a link
+  // elsewhere in the app).
+  useEffect(() => {
+    if (!financeActive) setMobileFinanceOpen(false);
+  }, [financeActive]);
 
   return (
     <>
@@ -175,13 +186,71 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
         </div>
       </aside>
 
+      {/* Mobile Finance submenu drawer — backdrop + sheet, sits above the bottom tab bar */}
+      {mobileFinanceOpen && (
+        <>
+          <button
+            aria-label="Close Finance menu"
+            onClick={() => setMobileFinanceOpen(false)}
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          />
+          <div className="fixed inset-x-0 bottom-[56px] z-50 max-h-[60vh] overflow-y-auto border-t border-outline-variant bg-surface pb-2 lg:hidden">
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="font-mono-data text-[11px] uppercase tracking-widest text-on-surface-variant/70">
+                Finance
+              </span>
+              <button
+                onClick={() => setMobileFinanceOpen(false)}
+                className="text-on-surface-variant"
+                aria-label="Close"
+              >
+                <ChevronUp size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1 px-3 pb-3">
+              {FINANCE_SUB_ITEMS.map((tab) => {
+                const tabActive = pathname === tab.href;
+                return (
+                  <Link
+                    key={tab.href}
+                    href={tab.href}
+                    onClick={() => setMobileFinanceOpen(false)}
+                    className={cn(
+                      "border border-outline-variant px-3 py-2.5 text-center font-mono-data text-[11px] uppercase tracking-wider transition-colors",
+                      tabActive
+                        ? "border-primary/40 bg-primary/[0.06] text-primary"
+                        : "text-on-surface-variant hover:text-on-surface"
+                    )}
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
       <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-outline-variant bg-surface/95 px-2 py-1.5 backdrop-blur lg:hidden">
         {NAV_ITEMS.slice(0, 5).map(({ label, icon: Icon, href }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const isFinance = label === "Finance";
+
           return (
             <Link
               key={label}
               href={href}
+              onClick={(e) => {
+                if (!isFinance) return;
+                if (active) {
+                  // Already on a Finance page: tap toggles the drawer instead
+                  // of re-navigating.
+                  e.preventDefault();
+                  setMobileFinanceOpen((v) => !v);
+                } else {
+                  setMobileFinanceOpen(true);
+                }
+              }}
               className={cn(
                 "flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-[10px] font-medium transition-colors",
                 active ? "text-primary" : "text-on-surface-variant"

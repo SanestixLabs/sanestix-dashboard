@@ -152,7 +152,7 @@ export async function getTransactions(): Promise<Transaction[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("finance_transactions")
-    .select("id, occurred_on, kind, category, amount, note, profiles(full_name)")
+    .select("id, occurred_on, kind, category, amount, note, proof_url, profiles(full_name)")
     .order("occurred_on", { ascending: false });
 
   if (error) throw new Error(`Failed to load finance_transactions: ${error.message}`);
@@ -166,6 +166,7 @@ export async function getTransactions(): Promise<Transaction[]> {
       category: row.category,
       amount: Number(row.amount),
       note: row.note,
+      proofUrl: row.proof_url,
       createdByName: profile?.full_name ?? null,
     };
   });
@@ -179,7 +180,7 @@ export async function getInvoices(): Promise<Invoice[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("invoices")
-    .select("id, client_name, amount, status, due_date, profiles(full_name)")
+    .select("id, client_name, amount, status, due_date, proof_url, profiles(full_name)")
     .order("due_date", { ascending: true });
 
   if (error) throw new Error(`Failed to load invoices: ${error.message}`);
@@ -192,6 +193,7 @@ export async function getInvoices(): Promise<Invoice[]> {
       amount: Number(row.amount),
       status: row.status,
       dueDate: row.due_date,
+      proofUrl: row.proof_url,
       createdByName: profile?.full_name ?? null,
     };
   });
@@ -346,7 +348,7 @@ export async function getSubscriptions(): Promise<Subscription[]> {
   const { data, error } = await supabase
     .from("subscriptions")
     .select(
-      "id, vendor_name, cost, billing_cycle, renewal_date, owner, status, notes, created_at, profiles(full_name)"
+      "id, vendor_name, cost, billing_cycle, renewal_date, owner, status, notes, proof_url, created_at, profiles(full_name)"
     )
     .order("renewal_date", { ascending: true, nullsFirst: false });
 
@@ -363,6 +365,7 @@ export async function getSubscriptions(): Promise<Subscription[]> {
       owner: row.owner,
       status: row.status,
       notes: row.notes,
+      proofUrl: row.proof_url,
       createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,
     };
@@ -378,7 +381,7 @@ export async function getAssets(): Promise<Asset[]> {
   const { data, error } = await supabase
     .from("assets")
     .select(
-      "id, name, purchase_date, cost, owner, condition, serial_number, notes, created_at, profiles(full_name)"
+      "id, name, purchase_date, cost, owner, condition, serial_number, notes, proof_url, created_at, profiles(full_name)"
     )
     .order("purchase_date", { ascending: false });
 
@@ -395,6 +398,7 @@ export async function getAssets(): Promise<Asset[]> {
       condition: row.condition,
       serialNumber: row.serial_number,
       notes: row.notes,
+      proofUrl: row.proof_url,
       createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,
     };
@@ -410,7 +414,7 @@ export async function getDebts(): Promise<Debt[]> {
   const { data, error } = await supabase
     .from("debts")
     .select(
-      "id, counterparty, principal, paid_amount, due_date, status, notes, created_at, profiles(full_name)"
+      "id, counterparty, principal, paid_amount, due_date, status, notes, proof_url, created_at, profiles(full_name)"
     )
     .order("due_date", { ascending: true, nullsFirst: false });
 
@@ -429,6 +433,7 @@ export async function getDebts(): Promise<Debt[]> {
       dueDate: row.due_date,
       status: row.status,
       notes: row.notes,
+      proofUrl: row.proof_url,
       createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,
     };

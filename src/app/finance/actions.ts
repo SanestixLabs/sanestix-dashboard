@@ -7,6 +7,50 @@ import { createClient } from "@/lib/supabase/server";
 import { recordActivity } from "@/lib/audit";
 import { formatCurrency } from "@/lib/utils";
 
+// ---------------------------------------------------------------------------
+// Shared proof-of-payment upload helper — used by every "add" action below
+// so transactions, invoices, debts, assets, and subscriptions can all attach
+// a receipt/screenshot/document the same way markSalaryPaid already does.
+// ---------------------------------------------------------------------------
+
+async function uploadProofFile({
+  supabase,
+  folder,
+  entityId,
+  proof,
+  redirectTo,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  folder: string;
+  entityId: string;
+  proof: FormDataEntryValue | null;
+  redirectTo: string;
+}): Promise<string | null> {
+  if (!(proof instanceof File) || proof.size === 0) return null;
+
+  if (!proof.type.startsWith("image/") && proof.type !== "application/pdf") {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Proof must be an image or PDF file")}`);
+  }
+  if (proof.size > 5 * 1024 * 1024) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Proof file must be under 5MB")}`);
+  }
+
+  const ext = proof.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${folder}/${entityId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("payment-proofs")
+    .upload(path, proof, { contentType: proof.type, upsert: false });
+
+  if (uploadError) {
+    redirect(
+      `${redirectTo}?error=${encodeURIComponent(`Proof upload failed: ${uploadError.message}`)}`
+    );
+  }
+
+  return supabase.storage.from("payment-proofs").getPublicUrl(path).data.publicUrl;
+}
+
 export async function addTransaction(formData: FormData) {
   const kind = String(formData.get("kind") ?? "");
   const category = String(formData.get("category") ?? "") || null;
@@ -38,6 +82,18 @@ export async function addTransaction(formData: FormData) {
 
   if (error) {
     redirect(`/finance/transactions?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const proofUrl = await uploadProofFile({
+    supabase,
+    folder: "transactions",
+    entityId: inserted!.id,
+    proof: formData.get("proof"),
+    redirectTo: "/finance/transactions",
+  });
+
+  if (proofUrl) {
+    await supabase.from("finance_transactions").update({ proof_url: proofUrl }).eq("id", inserted!.id);
   }
 
   await recordActivity({
@@ -202,6 +258,18 @@ export async function addInvoice(formData: FormData) {
 
   if (error) {
     redirect(`/finance/invoices?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const proofUrl = await uploadProofFile({
+    supabase,
+    folder: "invoices",
+    entityId: inserted!.id,
+    proof: formData.get("proof"),
+    redirectTo: "/finance/invoices",
+  });
+
+  if (proofUrl) {
+    await supabase.from("invoices").update({ proof_url: proofUrl }).eq("id", inserted!.id);
   }
 
   await recordActivity({
@@ -501,6 +569,18 @@ export async function addSubscription(formData: FormData) {
     redirect(`/finance/subscriptions?error=${encodeURIComponent(error.message)}`);
   }
 
+  const proofUrl = await uploadProofFile({
+    supabase,
+    folder: "subscriptions",
+    entityId: inserted!.id,
+    proof: formData.get("proof"),
+    redirectTo: "/finance/subscriptions",
+  });
+
+  if (proofUrl) {
+    await supabase.from("subscriptions").update({ proof_url: proofUrl }).eq("id", inserted!.id);
+  }
+
   await recordActivity({
     supabase,
     actorId: user?.id ?? null,
@@ -599,6 +679,18 @@ export async function addAsset(formData: FormData) {
     redirect(`/finance/assets?error=${encodeURIComponent(error.message)}`);
   }
 
+  const proofUrl = await uploadProofFile({
+    supabase,
+    folder: "assets",
+    entityId: inserted!.id,
+    proof: formData.get("proof"),
+    redirectTo: "/finance/assets",
+  });
+
+  if (proofUrl) {
+    await supabase.from("assets").update({ proof_url: proofUrl }).eq("id", inserted!.id);
+  }
+
   await recordActivity({
     supabase,
     actorId: user?.id ?? null,
@@ -685,6 +777,18 @@ export async function addDebt(formData: FormData) {
 
   if (error) {
     redirect(`/finance/debts?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const proofUrl = await uploadProofFile({
+    supabase,
+    folder: "debts",
+    entityId: inserted!.id,
+    proof: formData.get("proof"),
+    redirectTo: "/finance/debts",
+  });
+
+  if (proofUrl) {
+    await supabase.from("debts").update({ proof_url: proofUrl }).eq("id", inserted!.id);
   }
 
   await recordActivity({
