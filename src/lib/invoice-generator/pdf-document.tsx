@@ -8,10 +8,11 @@ import { invoiceTheme as t } from "./theme";
 // server's copy of /public — swapped in for the old text+squiggle
 // placeholder that used to stand in for "Sanestix".
 const LOGO_PATH = path.join(process.cwd(), "public", "sanestix-logo.png");
-// Source logo is 1028x824 (aspect ratio ~1.248:1) — width fixed, height
-// derived so it never distorts regardless of react-pdf's Image sizing.
-const LOGO_WIDTH = 118;
-const LOGO_HEIGHT = Math.round(LOGO_WIDTH / 1.248);
+// Source logo is a wide wordmark, 1600x472 (aspect ratio ~3.39:1) — width
+// fixed, height derived so it never distorts regardless of react-pdf's
+// Image sizing.
+const LOGO_WIDTH = 140;
+const LOGO_HEIGHT = Math.round(LOGO_WIDTH / 3.39);
 
 const styles = StyleSheet.create({
   page: {
@@ -151,7 +152,7 @@ export function InvoicePdfDocument({ invoice }: { invoice: InvoiceData }) {
           <View style={styles.headerRow}>
             <View style={{ maxWidth: 260 }}>
               {/* eslint-disable-next-line jsx-a11y/alt-text -- this is @react-pdf/renderer's Image, not an HTML img */}
-              <Image src={LOGO_PATH} style={{ width: LOGO_WIDTH, height: LOGO_HEIGHT, marginBottom: 4 }} />
+              <Image src={LOGO_PATH} style={{ width: LOGO_WIDTH, height: LOGO_HEIGHT, marginBottom: 8 }} />
               {invoice.sender.email ? (
                 <View style={styles.contactRow}>
                   <View style={styles.dot} />

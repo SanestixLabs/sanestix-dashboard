@@ -45,13 +45,13 @@ export function InvoicePreview({ doc }: { doc: InvoiceDocument }) {
             <img
               src="/sanestix-logo.png"
               alt={doc.sender.name || "Sanestix"}
-              style={{ width: 150, height: 120, objectFit: "contain", display: "block" }}
+              style={{ width: 176, height: "auto", objectFit: "contain", display: "block" }}
             />
             {doc.sender.tagline && (
-              <p style={{ fontSize: 11, color: t.gray, marginTop: 6 }}>{doc.sender.tagline}</p>
+              <p style={{ fontSize: 11, color: t.gray, marginTop: 10 }}>{doc.sender.tagline}</p>
             )}
 
-            <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 9 }}>
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 9 }}>
               {doc.sender.email && (
                 <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12 }}>
                   <Mail size={13} color={t.cyan} />

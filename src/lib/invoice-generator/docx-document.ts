@@ -21,10 +21,11 @@ import { computeTotals, formatDateLong, formatMoney, lineItemAmount } from "./ca
 import { invoiceTheme } from "./theme";
 
 // Same brand logo used by the PDF export and the on-screen preview.
-// Aspect ratio ~1.248:1 (1028x824 source) — width fixed, height derived.
+// Aspect ratio ~3.39:1 (1600x472 source, wide wordmark) — width fixed,
+// height derived.
 const LOGO_PATH = path.join(process.cwd(), "public", "sanestix-logo.png");
-const LOGO_WIDTH = 130;
-const LOGO_HEIGHT = Math.round(LOGO_WIDTH / 1.248);
+const LOGO_WIDTH = 150;
+const LOGO_HEIGHT = Math.round(LOGO_WIDTH / 3.39);
 
 const hex = (v: string) => v.replace("#", "");
 
