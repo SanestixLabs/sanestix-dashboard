@@ -263,3 +263,57 @@ export interface EmployeePayment {
   createdByName: string | null;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 5 — Projects module (real, Supabase-backed)
+// ---------------------------------------------------------------------------
+
+export type ProjectRecordStatus = "on_track" | "at_risk" | "delayed" | "completed";
+
+export interface ProjectPerson {
+  id: string;
+  fullName: string | null;
+}
+
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  clientName: string | null;
+  description: string | null;
+  status: ProjectRecordStatus;
+  ownerId: string | null;
+  ownerName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  budget: number | null;
+  taskCount: number;
+  doneTaskCount: number;
+  overdueTaskCount: number;
+  createdAt: string;
+}
+
+export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorName: string | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  position: number;
+  assignees: ProjectPerson[];
+  comments: TaskComment[];
+  createdByName: string | null;
+  createdAt: string;
+}

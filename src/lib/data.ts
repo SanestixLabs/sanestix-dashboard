@@ -1,16 +1,16 @@
 import type { DashboardData } from "./types";
-import { getFinanceData } from "./supabase/queries";
+import { getFinanceData, getProjectsDashboardData } from "./supabase/queries";
 
 // -----------------------------------------------------------------------
 // STATUS (update this comment as modules go live):
 //   Finance   → REAL, from Supabase (finance_transactions + invoices)
-//   Projects  → mock, still hardcoded below
+//   Projects  → REAL, from Supabase (projects + tasks)
 //   CRM       → mock, still hardcoded below
 //
-// When Projects/CRM get their own tables, add a getProjectsData() /
-// getCrmData() next to getFinanceData() in lib/supabase/queries.ts and
-// merge them below the same way Finance is merged now. No component
-// outside this file needs to change — they all consume DashboardData.
+// When CRM gets its own tables, add a getCrmData() next to getFinanceData()
+// in lib/supabase/queries.ts and merge it below the same way Finance and
+// Projects are merged now. No component outside this file needs to
+// change — they all consume DashboardData.
 // -----------------------------------------------------------------------
 
 const MOCK_DASHBOARD_DATA: DashboardData = {
@@ -155,15 +155,26 @@ const MOCK_DASHBOARD_DATA: DashboardData = {
 };
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const mockFinanceKpiIds = new Set(["revenue-mtd", "outstanding-invoices"]);
-  const nonFinanceKpis = MOCK_DASHBOARD_DATA.kpis.filter((k) => !mockFinanceKpiIds.has(k.id));
+  const mockHandledIds = new Set([
+    "revenue-mtd",
+    "outstanding-invoices",
+    "active-projects",
+    "overdue-tasks",
+  ]);
+  const remainingMockKpis = MOCK_DASHBOARD_DATA.kpis.filter((k) => !mockHandledIds.has(k.id));
+  const mockNonProjectActivity = MOCK_DASHBOARD_DATA.activity.filter((a) => a.module !== "projects");
 
-  const finance = await getFinanceData();
+  const [finance, projects] = await Promise.all([getFinanceData(), getProjectsDashboardData()]);
+
   return {
     ...MOCK_DASHBOARD_DATA,
     generatedAt: new Date().toISOString(),
-    kpis: [...finance.kpis, ...nonFinanceKpis],
+    kpis: [...finance.kpis, ...projects.kpis, ...remainingMockKpis],
     revenueTrend: finance.revenueTrend.length ? finance.revenueTrend : MOCK_DASHBOARD_DATA.revenueTrend,
     cashFlow: finance.cashFlow.length ? finance.cashFlow : MOCK_DASHBOARD_DATA.cashFlow,
+    projectStatus: projects.projectStatus.length
+      ? projects.projectStatus
+      : MOCK_DASHBOARD_DATA.projectStatus,
+    activity: [...projects.activity, ...mockNonProjectActivity].slice(0, 6),
   };
 }

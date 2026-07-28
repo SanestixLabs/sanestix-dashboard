@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate } from "@/lib/utils";
 import type {
+  ActivityItem,
   Asset,
   CashFlowPoint,
   Debt,
@@ -12,8 +13,13 @@ import type {
   LoanBalance,
   LoanEntry,
   ProfitDistribution,
+  ProjectListItem,
+  ProjectPerson,
+  ProjectStatusSlice,
+  ProjectTask,
   RevenuePoint,
   Subscription,
+  TaskComment,
   Transaction,
   UpcomingPayment,
   Vendor,
@@ -647,5 +653,267 @@ export async function getUpcomingPayments(withinDays = 30): Promise<{
   return {
     due: [...dueFromDebts, ...dueFromSubscriptions, ...dueFromPayroll].sort(byDueDateAsc),
     toReceive: toReceive.sort(byDueDateAsc),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 — Projects module
+// ---------------------------------------------------------------------------
+
+const PROJECT_STATUS_LABEL: Record<string, ProjectStatusSlice["status"]> = {
+  on_track: "On Track",
+  at_risk: "At Risk",
+  delayed: "Delayed",
+  completed: "Completed",
+};
+
+/**
+ * Full project list, newest first, with the owner's name and a live task
+ * count / done count / overdue count rolled up from `tasks`.
+ */
+export async function getProjects(): Promise<ProjectListItem[]> {
+  const supabase = await createClient();
+
+  const [{ data: projects, error: projError }, { data: tasks, error: taskError }] =
+    await Promise.all([
+      supabase
+        .from("projects")
+        .select(
+          "id, name, client_name, description, status, owner_id, start_date, end_date, budget, created_at, profiles!projects_owner_id_fkey(full_name)"
+        )
+        .order("created_at", { ascending: false }),
+      supabase.from("tasks").select("id, project_id, status, due_date"),
+    ]);
+
+  if (projError) throw new Error(`Failed to load projects: ${projError.message}`);
+  if (taskError) throw new Error(`Failed to load tasks: ${taskError.message}`);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  return (projects ?? []).map((row) => {
+    const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    const projectTasks = (tasks ?? []).filter((t) => t.project_id === row.id);
+    const doneTaskCount = projectTasks.filter((t) => t.status === "done").length;
+    const overdueTaskCount = projectTasks.filter(
+      (t) => t.status !== "done" && t.due_date && t.due_date < todayIso
+    ).length;
+
+    return {
+      id: row.id,
+      name: row.name,
+      clientName: row.client_name,
+      description: row.description,
+      status: row.status,
+      ownerId: row.owner_id,
+      ownerName: owner?.full_name ?? null,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      budget: row.budget !== null ? Number(row.budget) : null,
+      taskCount: projectTasks.length,
+      doneTaskCount,
+      overdueTaskCount,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * One project by id, or null if it doesn't exist / isn't visible under RLS.
+ */
+export async function getProjectById(projectId: string): Promise<ProjectListItem | null> {
+  const projects = await getProjects();
+  return projects.find((p) => p.id === projectId) ?? null;
+}
+
+/**
+ * Everyone assigned to a project (project_members), joined with their name.
+ */
+export async function getProjectMembers(projectId: string): Promise<ProjectPerson[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_members")
+    .select("member_id, profiles!project_members_member_id_fkey(id, full_name)")
+    .eq("project_id", projectId);
+
+  if (error) throw new Error(`Failed to load project_members: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return { id: profile?.id ?? row.member_id, fullName: profile?.full_name ?? null };
+  });
+}
+
+/**
+ * Every task on a project, ordered for the Kanban board, each with its
+ * assignees and full comment thread already attached (this is a small
+ * internal tool — one round trip per project is plenty).
+ */
+export async function getProjectTasks(projectId: string): Promise<ProjectTask[]> {
+  const supabase = await createClient();
+
+  const { data: taskRows, error } = await supabase
+    .from("tasks")
+    .select(
+      "id, project_id, title, description, status, priority, due_date, position, created_at, profiles!tasks_created_by_fkey(full_name), task_assignees(member_id, profiles!task_assignees_member_id_fkey(id, full_name))"
+    )
+    .eq("project_id", projectId)
+    .order("position", { ascending: true });
+
+  if (error) throw new Error(`Failed to load tasks: ${error.message}`);
+
+  const taskIds = (taskRows ?? []).map((t) => t.id);
+
+  const { data: commentRows, error: commentError } = taskIds.length
+    ? await supabase
+        .from("task_comments")
+        .select("id, task_id, body, created_at, profiles!task_comments_author_id_fkey(full_name)")
+        .in("task_id", taskIds)
+        .order("created_at", { ascending: true })
+    : { data: [], error: null };
+
+  if (commentError) throw new Error(`Failed to load task_comments: ${commentError.message}`);
+
+  return (taskRows ?? []).map((row) => {
+    const creator = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+
+    const assignees: ProjectPerson[] = (row.task_assignees ?? []).map((a) => {
+      const profile = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
+      return { id: profile?.id ?? a.member_id, fullName: profile?.full_name ?? null };
+    });
+
+    const comments: TaskComment[] = (commentRows ?? [])
+      .filter((c) => c.task_id === row.id)
+      .map((c) => {
+        const author = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+        return {
+          id: c.id,
+          taskId: c.task_id,
+          authorName: author?.full_name ?? null,
+          body: c.body,
+          createdAt: c.created_at,
+        };
+      });
+
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      priority: row.priority,
+      dueDate: row.due_date,
+      position: Number(row.position),
+      assignees,
+      comments,
+      createdByName: creator?.full_name ?? null,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * The next N overdue tasks across all projects, shaped as dashboard
+ * activity items.
+ */
+export async function getOverdueTaskActivity(limit = 4): Promise<ActivityItem[]> {
+  const supabase = await createClient();
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("id, title, due_date, projects!tasks_project_id_fkey(name)")
+    .neq("status", "done")
+    .not("due_date", "is", null)
+    .lt("due_date", todayIso)
+    .order("due_date", { ascending: true })
+    .limit(limit);
+
+  if (error) throw new Error(`Failed to load overdue tasks: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const project = Array.isArray(row.projects) ? row.projects[0] : row.projects;
+    return {
+      id: `task-overdue-${row.id}`,
+      kind: "task_overdue",
+      title: `Task overdue — ${row.title}`,
+      detail: project?.name ? `Project: ${project.name}` : "Project unknown",
+      timestamp: row.due_date ? formatRelativeDate(row.due_date).label : "",
+      module: "projects",
+    };
+  });
+}
+
+/**
+ * Real Projects data for the Executive Dashboard: KPI cards, the
+ * On Track/At Risk/Delayed/Completed split, and recent projects/tasks
+ * activity. Mirrors the shape getFinanceData() returns.
+ */
+export async function getProjectsDashboardData(): Promise<{
+  kpis: KpiCard[];
+  projectStatus: ProjectStatusSlice[];
+  activity: ActivityItem[];
+}> {
+  const [projects, overdueTaskActivity] = await Promise.all([
+    getProjects(),
+    getOverdueTaskActivity(4),
+  ]);
+
+  const activeProjects = projects.filter((p) => p.status !== "completed");
+  const overdueTaskCount = projects.reduce((sum, p) => sum + p.overdueTaskCount, 0);
+
+  const counts: Record<ProjectStatusSlice["status"], number> = {
+    "On Track": 0,
+    "At Risk": 0,
+    Delayed: 0,
+    Completed: 0,
+  };
+  for (const p of projects) counts[PROJECT_STATUS_LABEL[p.status]] += 1;
+
+  const projectStatus: ProjectStatusSlice[] = (
+    Object.keys(counts) as ProjectStatusSlice["status"][]
+  )
+    .map((status) => ({ status, count: counts[status] }))
+    .filter((slice) => slice.count > 0);
+
+  const kpis: KpiCard[] = [
+    {
+      id: "active-projects",
+      label: "Active Projects",
+      value: String(activeProjects.length),
+      delta: `${projects.length} total`,
+      trend: "flat",
+      tone: "neutral",
+      sourceModule: "projects",
+    },
+    {
+      id: "overdue-tasks",
+      label: "Overdue Tasks",
+      value: String(overdueTaskCount),
+      delta: overdueTaskCount > 0 ? "Needs attention" : "All clear",
+      trend: overdueTaskCount > 0 ? "up" : "flat",
+      tone: overdueTaskCount > 0 ? "error" : "success",
+      sourceModule: "projects",
+    },
+  ];
+
+  const delayedActivity: ActivityItem[] = projects
+    .filter((p) => p.status === "delayed")
+    .slice(0, 3)
+    .map((p) => ({
+      id: `project-delay-${p.id}`,
+      kind: "project_delay",
+      title: `Project delayed — ${p.name}`,
+      detail: p.clientName ? `Client: ${p.clientName}` : "No client set",
+      timestamp: new Date(p.createdAt).toLocaleDateString("en-PK", {
+        day: "2-digit",
+        month: "short",
+      }),
+      module: "projects",
+    }));
+
+  return {
+    kpis,
+    projectStatus,
+    activity: [...overdueTaskActivity, ...delayedActivity],
   };
 }
