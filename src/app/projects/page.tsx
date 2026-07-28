@@ -1,23 +1,22 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { StatusPill } from "@/components/ui/status-pill";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
 import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
-import { getProjects, getFounders } from "@/lib/supabase/queries";
+import { getProjects } from "@/lib/supabase/queries";
 import { addProject, updateProjectStatus, deleteProject } from "@/app/projects/actions";
-import { formatCurrency } from "@/lib/utils";
+import type { ProjectRowStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS: { value: ProjectRowStatus; label: string }[] = [
   { value: "on_track", label: "On Track" },
   { value: "at_risk", label: "At Risk" },
   { value: "delayed", label: "Delayed" },
   { value: "completed", label: "Completed" },
 ];
 
-const STATUS_TONE: Record<string, "success" | "warning" | "error" | "neutral"> = {
+const STATUS_TONE: Record<ProjectRowStatus, "success" | "warning" | "error" | "neutral"> = {
   on_track: "success",
   at_risk: "warning",
   delayed: "error",
@@ -30,23 +29,21 @@ export default async function ProjectsPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
-  const [projects, people] = await Promise.all([getProjects(), getFounders()]);
-
+  const projects = await getProjects();
   const activeCount = projects.filter((p) => p.status !== "completed").length;
-  const overdueCount = projects.reduce((sum, p) => sum + p.overdueTaskCount, 0);
-  const atRiskCount = projects.filter((p) => p.status === "at_risk" || p.status === "delayed")
-    .length;
+  const atRiskCount = projects.filter((p) => p.status === "at_risk" || p.status === "delayed").length;
 
   return (
     <DashboardShell breadcrumb={["Sanestix OS", "Projects"]}>
       <div>
         <h1 className="text-[28px] font-bold tracking-tight text-on-surface">Projects</h1>
         <p className="mt-1 text-[13px] text-on-surface-variant">
-          Client delivery workspace — projects, tasks, and ownership, live from Supabase.
+          Client delivery work. Projects marked with a source lead were auto-created when that
+          lead was won in CRM.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="p-4">
           <p className="text-[10px] font-mono-data uppercase tracking-widest text-on-surface-variant/70">
             Total projects
@@ -65,18 +62,12 @@ export default async function ProjectsPage({
           </p>
           <p className="mt-2 text-[22px] font-bold tracking-tight text-warning">{atRiskCount}</p>
         </Card>
-        <Card className="p-4">
-          <p className="text-[10px] font-mono-data uppercase tracking-widest text-on-surface-variant/70">
-            Overdue tasks
-          </p>
-          <p className="mt-2 text-[22px] font-bold tracking-tight text-error">{overdueCount}</p>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="p-6">
-          <CardTitle>New project</CardTitle>
-          <CardDescription>Kick off a new piece of client work.</CardDescription>
+          <CardTitle>Add a project</CardTitle>
+          <CardDescription>Manually start a project not tied to a CRM lead.</CardDescription>
 
           <form action={addProject} className="mt-4 space-y-3">
             {params.error && (
@@ -84,10 +75,9 @@ export default async function ProjectsPage({
                 {params.error}
               </div>
             )}
-
             <div>
               <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Name
+                Project name
               </label>
               <input
                 type="text"
@@ -97,10 +87,9 @@ export default async function ProjectsPage({
                 placeholder="e.g. Atlas Migration"
               />
             </div>
-
             <div>
               <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Client
+                Client name
               </label>
               <input
                 type="text"
@@ -109,111 +98,37 @@ export default async function ProjectsPage({
                 placeholder="Optional"
               />
             </div>
-
             <div>
               <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Owner
-              </label>
-              <select
-                name="ownerId"
-                className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-              >
-                <option value="">Unassigned</option>
-                {people.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName ?? "Unnamed"}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                  Start date
-                </label>
-                <input
-                  type="date"
-                  name="startDate"
-                  className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                  End date
-                </label>
-                <input
-                  type="date"
-                  name="endDate"
-                  className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Budget (PKR)
-              </label>
-              <input
-                type="number"
-                name="budget"
-                min="0"
-                step="0.01"
-                className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-                placeholder="Optional"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Description
+                Notes
               </label>
               <textarea
-                name="description"
-                rows={2}
+                name="notes"
+                rows={3}
                 className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
                 placeholder="Optional"
               />
             </div>
-
-            <div>
-              <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
-                Status
-              </label>
-              <select
-                name="status"
-                defaultValue="on_track"
-                className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <button
               type="submit"
               className="w-full bg-primary px-4 py-2.5 font-mono-data text-[11px] font-medium uppercase tracking-wider text-on-primary transition hover:brightness-110 active:scale-95"
             >
-              Create project
+              Add project
             </button>
           </form>
         </Card>
 
         <Card className="p-6 lg:col-span-2">
-          <CardTitle>Project Registry</CardTitle>
+          <CardTitle>Project List</CardTitle>
           <CardDescription>All projects, newest first.</CardDescription>
 
-          <div className="mt-4 max-h-[640px] overflow-auto">
-            <table className="w-full min-w-[760px] text-left text-[13px]">
+          <div className="mt-4 max-h-[560px] overflow-auto">
+            <table className="w-full min-w-[720px] text-left text-[13px]">
               <thead className="sticky top-0 bg-surface">
                 <tr className="border-b border-outline-variant text-[10px] font-mono-data uppercase tracking-widest text-on-surface-variant/70">
                   <th className="pb-2 pr-4">Name</th>
-                  <th className="pb-2 pr-4">Client</th>
-                  <th className="pb-2 pr-4">Owner</th>
-                  <th className="pb-2 pr-4">Tasks</th>
+                  <th className="pb-2 pr-4">Client / Company</th>
+                  <th className="pb-2 pr-4">Source</th>
                   <th className="pb-2 pr-4">Status</th>
                   <th className="pb-2 text-right">Actions</th>
                 </tr>
@@ -221,38 +136,34 @@ export default async function ProjectsPage({
               <tbody>
                 {projects.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-on-surface-variant">
-                      No projects yet — create the first one on the left.
+                    <td colSpan={5} className="py-6 text-center text-on-surface-variant">
+                      No projects yet. Add one above, or win a lead in CRM.
                     </td>
                   </tr>
                 )}
                 {projects.map((p) => (
-                  <tr key={p.id} className="border-b border-outline-variant/50 align-top">
-                    <td className="py-2.5 pr-4">
-                      <Link href={`/projects/${p.id}`} className="text-on-surface hover:text-primary">
-                        {p.name}
-                      </Link>
-                      {p.budget !== null && (
-                        <p className="mt-0.5 font-mono-data text-[11px] text-on-surface-variant">
-                          {formatCurrency(p.budget)}
-                        </p>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-4 text-on-surface-variant">{p.clientName ?? "—"}</td>
-                    <td className="py-2.5 pr-4 text-on-surface-variant">{p.ownerName ?? "—"}</td>
+                  <tr key={p.id} className="border-b border-outline-variant/50">
+                    <td className="py-2.5 pr-4 text-on-surface">{p.name}</td>
                     <td className="py-2.5 pr-4 text-on-surface-variant">
-                      {p.doneTaskCount}/{p.taskCount} done
-                      {p.overdueTaskCount > 0 && (
-                        <span className="ml-2">
-                          <StatusPill tone="error">{p.overdueTaskCount} overdue</StatusPill>
-                        </span>
+                      {p.clientName ?? p.companyName ?? "—"}
+                    </td>
+                    <td className="py-2.5 pr-4 text-on-surface-variant">
+                      {p.sourceLeadId ? (
+                        <Link
+                          href={`/crm/leads/${p.sourceLeadId}`}
+                          className="text-primary hover:underline"
+                        >
+                          {p.sourceLeadTitle ?? "CRM lead"}
+                        </Link>
+                      ) : (
+                        "Manual"
                       )}
                     </td>
                     <td className="py-2.5">
                       <RegisterStatusForm
                         idFieldName="projectId"
                         idValue={p.id}
-                        status={STATUS_OPTIONS.find((o) => o.value === p.status)?.label ?? p.status}
+                        status={p.status}
                         tone={STATUS_TONE[p.status]}
                         options={STATUS_OPTIONS}
                         action={updateProjectStatus}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -27,26 +27,34 @@ const NAV_ITEMS = [
   { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
-// Moved here from the old FinanceTabs bar at the top of every finance page —
-// now lives as a submenu under the Finance nav item instead.
-const FINANCE_SUB_ITEMS = [
-  { label: "Overview", href: "/finance" },
-  { label: "Income", href: "/finance/income" },
-  { label: "Expenses", href: "/finance/expenses" },
-  { label: "Transactions", href: "/finance/transactions" },
-  { label: "Invoices", href: "/finance/invoices" },
-  { label: "Invoice Generator", href: "/finance/invoices/generator" },
-  { label: "Investments", href: "/finance/investments" },
-  { label: "Reimbursements", href: "/finance/reimbursements" },
-  { label: "Founder Entry", href: "/finance/loans" },
-  { label: "Profit Split", href: "/finance/profit-split" },
-  { label: "Reports", href: "/finance/reports" },
-  { label: "Vendors", href: "/finance/vendors" },
-  { label: "Employees", href: "/finance/employees" },
-  { label: "Subscriptions", href: "/finance/subscriptions" },
-  { label: "Assets", href: "/finance/assets" },
-  { label: "Debts", href: "/finance/debts" },
-];
+// Any nav item with a matching key here gets an expandable submenu (desktop
+// flyout + mobile bottom-sheet), same mechanism the old Finance-only bar
+// used — just generalized so CRM (and future modules) can have one too.
+const SUB_ITEMS: Record<string, { label: string; href: string }[]> = {
+  Finance: [
+    { label: "Overview", href: "/finance" },
+    { label: "Income", href: "/finance/income" },
+    { label: "Expenses", href: "/finance/expenses" },
+    { label: "Transactions", href: "/finance/transactions" },
+    { label: "Invoices", href: "/finance/invoices" },
+    { label: "Investments", href: "/finance/investments" },
+    { label: "Reimbursements", href: "/finance/reimbursements" },
+    { label: "Founder Entry", href: "/finance/loans" },
+    { label: "Profit Split", href: "/finance/profit-split" },
+    { label: "Reports", href: "/finance/reports" },
+    { label: "Vendors", href: "/finance/vendors" },
+    { label: "Employees", href: "/finance/employees" },
+    { label: "Subscriptions", href: "/finance/subscriptions" },
+    { label: "Assets", href: "/finance/assets" },
+    { label: "Debts", href: "/finance/debts" },
+  ],
+  CRM: [
+    { label: "Pipeline", href: "/crm" },
+    { label: "Companies", href: "/crm/companies" },
+    { label: "Contacts", href: "/crm/contacts" },
+    { label: "Tasks", href: "/crm/tasks" },
+  ],
+};
 
 function getInitials(email?: string) {
   if (!email) return "SU";
@@ -61,17 +69,18 @@ function getInitials(email?: string) {
 
 export function Sidebar({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname();
-  const [financeExpanded, setFinanceExpanded] = useState(true);
-  const [mobileFinanceOpen, setMobileFinanceOpen] = useState(false);
+  const [expandedMenu, setExpandedMenu] = useState<string | null>("Finance");
+  const [mobileMenuRequest, setMobileMenuRequest] = useState<string | null>(null);
 
-  const financeActive = pathname === "/finance" || pathname.startsWith("/finance/");
+  const activeItem = NAV_ITEMS.find(({ href }) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href)
+  );
 
-  // Close the mobile drawer if the user navigates away from Finance
-  // entirely (e.g. via the desktop sidebar in a resized window, or a link
-  // elsewhere in the app).
-  useEffect(() => {
-    if (!financeActive) setMobileFinanceOpen(false);
-  }, [financeActive]);
+  // Derived, not synced: the mobile sheet is only actually open if the
+  // requested module is still the one the user is on. Navigating away
+  // (via any link, not just this one) closes it automatically without
+  // needing a useEffect + setState round-trip.
+  const mobileMenuOpen = mobileMenuRequest && activeItem?.label === mobileMenuRequest ? mobileMenuRequest : null;
 
   return (
     <>
@@ -88,22 +97,24 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
         <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3">
           {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            const isFinance = label === "Finance";
+            const subItems = SUB_ITEMS[label];
+            const hasSubItems = Boolean(subItems);
+            const isExpanded = expandedMenu === label;
 
             return (
               <div key={label}>
                 <Link
                   href={href}
                   onClick={(e) => {
-                    if (!isFinance) return;
+                    if (!hasSubItems) return;
                     if (active) {
-                      // Already on a Finance page: clicking anywhere on the
-                      // row just toggles the submenu open/closed.
+                      // Already on this module: clicking anywhere on the row
+                      // just toggles the submenu open/closed.
                       e.preventDefault();
-                      setFinanceExpanded((v) => !v);
+                      setExpandedMenu((v) => (v === label ? null : label));
                     } else {
-                      // Navigating into Finance for the first time: open it.
-                      setFinanceExpanded(true);
+                      // Navigating into this module for the first time: open it.
+                      setExpandedMenu(label);
                     }
                   }}
                   className={cn(
@@ -119,20 +130,20 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
                     className="transition-transform duration-200 ease-out group-hover:scale-110"
                   />
                   <span className="flex-1">{label}</span>
-                  {isFinance && (
+                  {hasSubItems && (
                     <ChevronDown
                       size={14}
                       className={cn(
                         "transition-transform duration-200 ease-out",
-                        financeExpanded && "rotate-180"
+                        isExpanded && "rotate-180"
                       )}
                     />
                   )}
                 </Link>
 
-                {isFinance && active && financeExpanded && (
+                {hasSubItems && active && isExpanded && (
                   <div className="ml-[26px] mt-1 space-y-0.5 border-l border-outline-variant pl-3">
-                    {FINANCE_SUB_ITEMS.map((tab) => {
+                    {subItems.map((tab) => {
                       const tabActive = pathname === tab.href;
                       return (
                         <Link
@@ -187,21 +198,21 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
         </div>
       </aside>
 
-      {/* Mobile Finance submenu drawer — backdrop + sheet, sits above the bottom tab bar */}
-      {mobileFinanceOpen && (
+      {/* Mobile submenu drawer — backdrop + sheet, sits above the bottom tab bar */}
+      {mobileMenuOpen && SUB_ITEMS[mobileMenuOpen] && (
         <>
           <button
-            aria-label="Close Finance menu"
-            onClick={() => setMobileFinanceOpen(false)}
+            aria-label={`Close ${mobileMenuOpen} menu`}
+            onClick={() => setMobileMenuRequest(null)}
             className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           />
           <div className="fixed inset-x-0 bottom-[56px] z-50 max-h-[60vh] overflow-y-auto border-t border-outline-variant bg-surface pb-2 lg:hidden">
             <div className="flex items-center justify-between px-4 py-3">
               <span className="font-mono-data text-[11px] uppercase tracking-widest text-on-surface-variant/70">
-                Finance
+                {mobileMenuOpen}
               </span>
               <button
-                onClick={() => setMobileFinanceOpen(false)}
+                onClick={() => setMobileMenuRequest(null)}
                 className="text-on-surface-variant"
                 aria-label="Close"
               >
@@ -209,13 +220,13 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-1 px-3 pb-3">
-              {FINANCE_SUB_ITEMS.map((tab) => {
+              {SUB_ITEMS[mobileMenuOpen].map((tab) => {
                 const tabActive = pathname === tab.href;
                 return (
                   <Link
                     key={tab.href}
                     href={tab.href}
-                    onClick={() => setMobileFinanceOpen(false)}
+                    onClick={() => setMobileMenuRequest(null)}
                     className={cn(
                       "border border-outline-variant px-3 py-2.5 text-center font-mono-data text-[11px] uppercase tracking-wider transition-colors",
                       tabActive
@@ -235,21 +246,21 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
       <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-outline-variant bg-surface/95 px-2 py-1.5 backdrop-blur lg:hidden">
         {NAV_ITEMS.slice(0, 5).map(({ label, icon: Icon, href }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-          const isFinance = label === "Finance";
+          const hasSubItems = Boolean(SUB_ITEMS[label]);
 
           return (
             <Link
               key={label}
               href={href}
               onClick={(e) => {
-                if (!isFinance) return;
+                if (!hasSubItems) return;
                 if (active) {
-                  // Already on a Finance page: tap toggles the drawer instead
+                  // Already on this module: tap toggles the drawer instead
                   // of re-navigating.
                   e.preventDefault();
-                  setMobileFinanceOpen((v) => !v);
+                  setMobileMenuRequest((v) => (v === label ? null : label));
                 } else {
-                  setMobileFinanceOpen(true);
+                  setMobileMenuRequest(label);
                 }
               }}
               className={cn(

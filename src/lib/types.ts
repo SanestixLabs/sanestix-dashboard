@@ -265,55 +265,111 @@ export interface EmployeePayment {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 5 — Projects module (real, Supabase-backed)
+// CRM — Companies, Contacts, Leads (pipeline), activity log, follow-up tasks.
+// A "won" lead auto-creates a draft Project (see app/crm/actions.ts), which
+// is the real cross-module link the roadmap calls for.
 // ---------------------------------------------------------------------------
 
-export type ProjectRecordStatus = "on_track" | "at_risk" | "delayed" | "completed";
-
-export interface ProjectPerson {
+export interface CrmCompany {
   id: string;
-  fullName: string | null;
+  name: string;
+  industry: string | null;
+  website: string | null;
+  notes: string | null;
+  contactCount: number;
+  leadCount: number;
+  createdByName: string | null;
+  createdAt: string;
 }
 
-export interface ProjectListItem {
+export interface CrmContact {
+  id: string;
+  companyId: string | null;
+  companyName: string | null;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+
+export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "qualified", label: "Qualified" },
+  { value: "proposal", label: "Proposal" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+export interface CrmLead {
+  id: string;
+  title: string;
+  companyId: string | null;
+  companyName: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  stage: LeadStage;
+  value: number;
+  source: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  expectedCloseDate: string | null;
+  notes: string | null;
+  convertedProjectId: string | null;
+  openTaskCount: number;
+  overdueTaskCount: number;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LeadActivityKind = "note" | "call" | "email" | "meeting" | "stage_change";
+
+export interface CrmLeadActivity {
+  id: string;
+  leadId: string;
+  kind: LeadActivityKind;
+  content: string;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface CrmLeadTask {
+  id: string;
+  leadId: string;
+  leadTitle: string | null;
+  title: string;
+  dueDate: string;
+  done: boolean;
+  overdue: boolean;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Projects — minimal real table. Grows later (tasks, members, comments)
+// without changing this shape; a project can optionally trace back to the
+// lead that became it.
+// ---------------------------------------------------------------------------
+
+export type ProjectRowStatus = "on_track" | "at_risk" | "delayed" | "completed";
+
+export interface Project {
   id: string;
   name: string;
   clientName: string | null;
-  description: string | null;
-  status: ProjectRecordStatus;
-  ownerId: string | null;
-  ownerName: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  budget: number | null;
-  taskCount: number;
-  doneTaskCount: number;
-  overdueTaskCount: number;
-  createdAt: string;
-}
-
-export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
-export type TaskPriority = "low" | "medium" | "high" | "urgent";
-
-export interface TaskComment {
-  id: string;
-  taskId: string;
-  authorName: string | null;
-  body: string;
-  createdAt: string;
-}
-
-export interface ProjectTask {
-  id: string;
-  projectId: string;
-  title: string;
-  description: string | null;
-  status: TaskStatus;
-  priority: TaskPriority;
-  dueDate: string | null;
-  position: number;
-  assignees: ProjectPerson[];
-  comments: TaskComment[];
+  companyId: string | null;
+  companyName: string | null;
+  status: ProjectRowStatus;
+  sourceLeadId: string | null;
+  sourceLeadTitle: string | null;
+  notes: string | null;
   createdByName: string | null;
   createdAt: string;
 }

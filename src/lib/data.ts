@@ -1,16 +1,15 @@
 import type { DashboardData } from "./types";
-import { getFinanceData, getProjectsDashboardData } from "./supabase/queries";
+import { getFinanceData, getCrmData, getProjectsData } from "./supabase/queries";
 
 // -----------------------------------------------------------------------
 // STATUS (update this comment as modules go live):
 //   Finance   → REAL, from Supabase (finance_transactions + invoices)
-//   Projects  → REAL, from Supabase (projects + tasks)
-//   CRM       → mock, still hardcoded below
+//   Projects  → REAL, from Supabase (projects)
+//   CRM       → REAL, from Supabase (crm_leads + friends)
 //
-// When CRM gets its own tables, add a getCrmData() next to getFinanceData()
-// in lib/supabase/queries.ts and merge it below the same way Finance and
-// Projects are merged now. No component outside this file needs to
-// change — they all consume DashboardData.
+// The mock block below now only supplies the activity feed and the one
+// "Overdue Tasks" KPI, since Projects doesn't have its own task table yet
+// (that's the next phase — a proper Kanban with tasks/assignees/due dates).
 // -----------------------------------------------------------------------
 
 const MOCK_DASHBOARD_DATA: DashboardData = {
@@ -155,26 +154,25 @@ const MOCK_DASHBOARD_DATA: DashboardData = {
 };
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const mockHandledIds = new Set([
-    "revenue-mtd",
-    "outstanding-invoices",
-    "active-projects",
-    "overdue-tasks",
-  ]);
-  const remainingMockKpis = MOCK_DASHBOARD_DATA.kpis.filter((k) => !mockHandledIds.has(k.id));
-  const mockNonProjectActivity = MOCK_DASHBOARD_DATA.activity.filter((a) => a.module !== "projects");
+  // Only "Overdue Tasks" stays mock — Projects doesn't have a tasks table yet.
+  const mockOnlyKpiIds = new Set(["overdue-tasks"]);
+  const mockOnlyKpis = MOCK_DASHBOARD_DATA.kpis.filter((k) => mockOnlyKpiIds.has(k.id));
 
-  const [finance, projects] = await Promise.all([getFinanceData(), getProjectsDashboardData()]);
+  const [finance, crm, projects] = await Promise.all([
+    getFinanceData(),
+    getCrmData(),
+    getProjectsData(),
+  ]);
 
   return {
     ...MOCK_DASHBOARD_DATA,
     generatedAt: new Date().toISOString(),
-    kpis: [...finance.kpis, ...projects.kpis, ...remainingMockKpis],
+    kpis: [...finance.kpis, ...projects.kpis, ...crm.kpis, ...mockOnlyKpis],
     revenueTrend: finance.revenueTrend.length ? finance.revenueTrend : MOCK_DASHBOARD_DATA.revenueTrend,
     cashFlow: finance.cashFlow.length ? finance.cashFlow : MOCK_DASHBOARD_DATA.cashFlow,
-    projectStatus: projects.projectStatus.length
+    salesFunnel: crm.salesFunnel.some((s) => s.count > 0) ? crm.salesFunnel : MOCK_DASHBOARD_DATA.salesFunnel,
+    projectStatus: projects.projectStatus.some((s) => s.count > 0)
       ? projects.projectStatus
       : MOCK_DASHBOARD_DATA.projectStatus,
-    activity: [...projects.activity, ...mockNonProjectActivity].slice(0, 6),
   };
 }

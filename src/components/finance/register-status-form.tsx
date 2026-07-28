@@ -2,7 +2,7 @@
 
 import { StatusPill } from "@/components/ui/status-pill";
 
-type Tone = "success" | "warning" | "error" | "neutral";
+type Tone = "primary" | "success" | "warning" | "error" | "neutral";
 
 export function RegisterStatusForm({
   idFieldName,
@@ -11,6 +11,7 @@ export function RegisterStatusForm({
   tone,
   options,
   action,
+  extraFields,
 }: {
   idFieldName: string;
   idValue: string;
@@ -18,10 +19,15 @@ export function RegisterStatusForm({
   tone: Tone;
   options: { value: string; label: string }[];
   action: (formData: FormData) => void;
+  extraFields?: Record<string, string>;
 }) {
   return (
     <form action={action} className="flex items-center gap-2">
       <input type="hidden" name={idFieldName} value={idValue} />
+      {extraFields &&
+        Object.entries(extraFields).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       <StatusPill tone={tone}>{status}</StatusPill>
       <select
         name="status"
