@@ -35,6 +35,7 @@ const FINANCE_SUB_ITEMS = [
   { label: "Expenses", href: "/finance/expenses" },
   { label: "Transactions", href: "/finance/transactions" },
   { label: "Invoices", href: "/finance/invoices" },
+  { label: "Invoice Generator", href: "/finance/invoices/generator" },
   { label: "Investments", href: "/finance/investments" },
   { label: "Reimbursements", href: "/finance/reimbursements" },
   { label: "Founder Entry", href: "/finance/loans" },
