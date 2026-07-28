@@ -1,7 +1,17 @@
-import { Document, Page, View, Text, Svg, Path, StyleSheet } from "@react-pdf/renderer";
+import path from "node:path";
+import { Document, Page, View, Text, Image, Svg, Path, StyleSheet } from "@react-pdf/renderer";
 import type { InvoiceDocument as InvoiceData } from "./types";
 import { computeTotals, formatDateLong, formatMoney, lineItemAmount } from "./calculations";
 import { invoiceTheme as t } from "./theme";
+
+// Actual brand logo (public/sanestix-logo.png), read from the standalone
+// server's copy of /public — swapped in for the old text+squiggle
+// placeholder that used to stand in for "Sanestix".
+const LOGO_PATH = path.join(process.cwd(), "public", "sanestix-logo.png");
+// Source logo is 1028x824 (aspect ratio ~1.248:1) — width fixed, height
+// derived so it never distorts regardless of react-pdf's Image sizing.
+const LOGO_WIDTH = 118;
+const LOGO_HEIGHT = Math.round(LOGO_WIDTH / 1.248);
 
 const styles = StyleSheet.create({
   page: {
@@ -17,11 +27,6 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-  senderName: {
-    fontFamily: "Helvetica-Bold",
-    fontSize: 22,
-    color: "#0F1222",
   },
   contactRow: {
     flexDirection: "row",
@@ -134,19 +139,19 @@ export function InvoicePdfDocument({ invoice }: { invoice: InvoiceData }) {
   return (
     <Document title={`Invoice ${invoice.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
-        {/* Decorative top-right curve */}
-        <Svg width="300" height="180" style={{ position: "absolute", top: 0, right: 0 }}>
-          <Path d="M300 0H120C210 18 265 80 300 115V0Z" fill={t.navy} opacity={0.92} />
-          <Path d="M300 0H165C240 26 285 88 300 130V0Z" fill={t.cyan} />
+        {/* Decorative top-right corner accent. Capped at 32pt tall — well
+            under body.paddingTop (42) — so it can never overlap the
+            invoice title/meta text below it, at any width. */}
+        <Svg width="220" height="32" style={{ position: "absolute", top: 0, right: 0 }}>
+          <Path d="M220 0H60L220 30Z" fill={t.navy} opacity={0.92} />
+          <Path d="M220 0H130L220 20Z" fill={t.cyan} />
         </Svg>
 
         <View style={styles.body}>
           <View style={styles.headerRow}>
             <View style={{ maxWidth: 260 }}>
-              <Text style={styles.senderName}>{invoice.sender.name || "Your Company"}</Text>
-              <Svg width={100} height={8}>
-                <Path d="M2 5C25 -1 75 10 98 3" stroke={t.cyan} strokeWidth={3} fill="none" />
-              </Svg>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- this is @react-pdf/renderer's Image, not an HTML img */}
+              <Image src={LOGO_PATH} style={{ width: LOGO_WIDTH, height: LOGO_HEIGHT, marginBottom: 4 }} />
               {invoice.sender.email ? (
                 <View style={styles.contactRow}>
                   <View style={styles.dot} />

@@ -1,7 +1,10 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   Document,
   Paragraph,
   TextRun,
+  ImageRun,
   Table,
   TableRow,
   TableCell,
@@ -16,6 +19,12 @@ import {
 import type { InvoiceDocument as InvoiceData } from "./types";
 import { computeTotals, formatDateLong, formatMoney, lineItemAmount } from "./calculations";
 import { invoiceTheme } from "./theme";
+
+// Same brand logo used by the PDF export and the on-screen preview.
+// Aspect ratio ~1.248:1 (1028x824 source) — width fixed, height derived.
+const LOGO_PATH = path.join(process.cwd(), "public", "sanestix-logo.png");
+const LOGO_WIDTH = 130;
+const LOGO_HEIGHT = Math.round(LOGO_WIDTH / 1.248);
 
 const hex = (v: string) => v.replace("#", "");
 
@@ -74,10 +83,14 @@ export async function buildInvoiceDocx(invoice: InvoiceData): Promise<Buffer> {
         children: [
           cell(
             [
-              line(invoice.sender.name || "Your Company", { bold: true, size: 34 }),
               new Paragraph({
-                border: { bottom: { style: BorderStyle.SINGLE, size: 10, color: CYAN, space: 2 } },
-                children: [new TextRun({ text: " ", size: 4 })],
+                children: [
+                  new ImageRun({
+                    data: fs.readFileSync(LOGO_PATH),
+                    transformation: { width: LOGO_WIDTH, height: LOGO_HEIGHT },
+                    type: "png",
+                  }),
+                ],
               }),
               ...(invoice.sender.email ? [line(invoice.sender.email, { size: 18, color: "3A3F4C" })] : []),
               ...(invoice.sender.phone ? [line(invoice.sender.phone, { size: 18, color: "3A3F4C" })] : []),

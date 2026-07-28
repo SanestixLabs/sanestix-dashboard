@@ -24,32 +24,34 @@ export function InvoicePreview({ doc }: { doc: InvoiceDocument }) {
         color: t.navy,
       }}
     >
-      {/* Decorative top-right curve */}
+      {/* Decorative top-right corner accent. Capped at 36px tall — well
+          under the content padding-top (48px) below — so it can never
+          overlap the invoice title/meta text, at any width. */}
       <svg
-        width="340"
-        height="220"
-        viewBox="0 0 340 220"
+        width="240"
+        height="36"
+        viewBox="0 0 240 36"
         style={{ position: "absolute", top: 0, right: 0, zIndex: 0 }}
       >
-        <path d="M340 0H140C240 20 300 90 340 130V0Z" fill={t.navy} opacity="0.92" />
-        <path d="M340 0H190C270 30 320 100 340 150V0Z" fill={t.cyan} />
+        <path d="M240 0H70L240 34Z" fill={t.navy} opacity="0.92" />
+        <path d="M240 0H140L240 22Z" fill={t.cyan} />
       </svg>
 
       <div style={{ position: "relative", zIndex: 1, padding: "48px 52px 0 52px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ maxWidth: 300 }}>
-            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.5, color: "#0F1222" }}>
-              {doc.sender.name || "Your Company"}
-            </div>
-            <svg width="120" height="10" viewBox="0 0 120 10" style={{ marginTop: 2 }}>
-              <path d="M2 6C30 -2 90 12 118 4" stroke={t.cyan} strokeWidth="4" fill="none" strokeLinecap="round" />
-            </svg>
+            {/* eslint-disable-next-line @next/next/no-img-element -- fixed local asset, next/image adds no benefit here */}
+            <img
+              src="/sanestix-logo.png"
+              alt={doc.sender.name || "Sanestix"}
+              style={{ width: 150, height: 120, objectFit: "contain", display: "block" }}
+            />
             {doc.sender.tagline && (
               <p style={{ fontSize: 11, color: t.gray, marginTop: 6 }}>{doc.sender.tagline}</p>
             )}
 
-            <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 9 }}>
+            <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 9 }}>
               {doc.sender.email && (
                 <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12 }}>
                   <Mail size={13} color={t.cyan} />
