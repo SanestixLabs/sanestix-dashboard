@@ -1,3 +1,392 @@
+#!/usr/bin/env bash
+# Fix: restore CRM exports lost when apply-projects-module.sh overwrote
+# lib/types.ts, lib/supabase/queries.ts, lib/data.ts.
+# Run from the ROOT of your repo (/opt/sanestix-dashboard or wherever it lives).
+set -e
+
+mkdir -p src/lib/supabase
+
+echo "1/3 -- Restoring src/lib/types.ts (CRM + Projects types)..."
+cat > "src/lib/types.ts" << 'SANESTIX_EOF'
+// Domain types for Sanestix OS — Phase 1 modules (Finance, Projects, CRM)
+// These mirror the shape the FastAPI backend is expected to return per
+// Sanestix-OS-Roadmap.md §1.5 (Executive Dashboard, real data from
+// Finance + Projects + CRM). Swap `lib/data.ts` for real fetch calls
+// against these same shapes when the backend ships.
+
+export type TrendDirection = "up" | "down" | "flat";
+
+export interface KpiCard {
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+  delta?: string;
+  trend?: TrendDirection;
+  tone?: "primary" | "neutral" | "success" | "warning" | "error";
+  sourceModule: "finance" | "projects" | "crm";
+}
+
+export interface RevenuePoint {
+  month: string;
+  revenue: number;
+  expenses: number;
+}
+
+export interface CashFlowPoint {
+  month: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+}
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+}
+
+export interface ProjectStatusSlice {
+  status: "On Track" | "At Risk" | "Delayed" | "Completed";
+  count: number;
+}
+
+export type ActivityKind =
+  | "invoice_due"
+  | "invoice_paid"
+  | "task_overdue"
+  | "project_delay"
+  | "lead_new"
+  | "meeting_booked";
+
+export interface ActivityItem {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  timestamp: string; // relative label, e.g. "2m ago"
+  module: "finance" | "projects" | "crm";
+}
+
+export interface DashboardData {
+  kpis: KpiCard[];
+  revenueTrend: RevenuePoint[];
+  cashFlow: CashFlowPoint[];
+  salesFunnel: FunnelStage[];
+  projectStatus: ProjectStatusSlice[];
+  activity: ActivityItem[];
+  generatedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Transactions + Invoices — the raw ledger behind the Overview KPIs/charts.
+// ---------------------------------------------------------------------------
+
+export type TransactionKind = "revenue" | "expense";
+
+export interface Transaction {
+  id: string;
+  occurredOn: string;
+  kind: TransactionKind;
+  category: string | null;
+  amount: number;
+  note: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+}
+
+export type InvoiceStatus = "outstanding" | "paid" | "overdue";
+
+export interface Invoice {
+  id: string;
+  clientName: string;
+  amount: number;
+  status: InvoiceStatus;
+  dueDate: string;
+  proofUrl: string | null;
+  createdByName: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Founder loans + profit distribution ("loan recovery" / "profit split")
+// ---------------------------------------------------------------------------
+
+export interface Founder {
+  id: string;
+  fullName: string | null;
+}
+
+export type LoanDirection = "loan_in" | "repayment_out";
+
+export interface LoanEntry {
+  id: string;
+  founderId: string;
+  founderName: string | null;
+  occurredOn: string;
+  description: string;
+  direction: LoanDirection;
+  amount: number;
+}
+
+export interface LoanBalance {
+  founderId: string;
+  founderName: string | null;
+  totalLoaned: number;
+  totalRepaid: number;
+  outstanding: number;
+}
+
+export interface ProfitDistribution {
+  id: string;
+  periodMonth: string;
+  grossProfit: number;
+  capitalReserve: number;
+  loanRepayment: number;
+  distributableProfit: number;
+  charityPct: number;
+  charityAmount: number;
+  perFounderAmount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ProfitSplitSuggestion {
+  periodMonth: string;
+  grossProfit: number;
+  outstandingLoanBalance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 registers — Vendors, Subscriptions, Assets, Debts, Employees
+// ---------------------------------------------------------------------------
+
+export type VendorStatus = "active" | "inactive";
+
+export interface Vendor {
+  id: string;
+  name: string;
+  category: string | null;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  paymentTerms: string | null;
+  status: VendorStatus;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type BillingCycle = "monthly" | "annual";
+export type SubscriptionStatus = "active" | "cancelled";
+
+export interface Subscription {
+  id: string;
+  vendorName: string;
+  cost: number;
+  billingCycle: BillingCycle;
+  renewalDate: string | null;
+  owner: string | null;
+  status: SubscriptionStatus;
+  notes: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type AssetCondition = "new" | "good" | "fair" | "poor" | "disposed";
+
+export interface Asset {
+  id: string;
+  name: string;
+  purchaseDate: string;
+  cost: number;
+  owner: string | null;
+  condition: AssetCondition;
+  serialNumber: string | null;
+  notes: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type DebtStatus = "outstanding" | "paid" | "overdue";
+
+export interface Debt {
+  id: string;
+  counterparty: string;
+  principal: number;
+  paidAmount: number;
+  remainingBalance: number;
+  dueDate: string | null;
+  status: DebtStatus;
+  notes: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type EmployeeStatus = "active" | "inactive";
+
+export interface Employee {
+  id: string;
+  fullName: string;
+  role: string | null;
+  salary: number | null;
+  startDate: string | null;
+  status: EmployeeStatus;
+  payDay: number | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Upcoming payments — combined view of money due out (debts, subscription
+// renewals) vs. money due in (unpaid invoices), for the Finance overview.
+// ---------------------------------------------------------------------------
+
+export type UpcomingPaymentDirection = "due" | "to_receive";
+export type UpcomingPaymentSource = "invoice" | "debt" | "subscription" | "employee";
+
+export interface UpcomingPayment {
+  id: string;
+  direction: UpcomingPaymentDirection;
+  source: UpcomingPaymentSource;
+  label: string;
+  amount: number;
+  dueDate: string;
+  overdue: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Employee salary payments — payroll history with optional proof-of-payment
+// image, so each payday can be marked paid and audited later.
+// ---------------------------------------------------------------------------
+
+export interface EmployeePayment {
+  id: string;
+  employeeId: string;
+  employeeName: string | null;
+  amount: number;
+  payPeriod: string; // first day of the month this payment covers, e.g. "2026-07-01"
+  paidOn: string;
+  proofUrl: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// CRM — Companies, Contacts, Leads (pipeline), activity log, follow-up tasks.
+// A "won" lead auto-creates a draft Project (see app/crm/actions.ts), which
+// is the real cross-module link the roadmap calls for.
+// ---------------------------------------------------------------------------
+
+export interface CrmCompany {
+  id: string;
+  name: string;
+  industry: string | null;
+  website: string | null;
+  notes: string | null;
+  contactCount: number;
+  leadCount: number;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface CrmContact {
+  id: string;
+  companyId: string | null;
+  companyName: string | null;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+
+export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "qualified", label: "Qualified" },
+  { value: "proposal", label: "Proposal" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+export interface CrmLead {
+  id: string;
+  title: string;
+  companyId: string | null;
+  companyName: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  stage: LeadStage;
+  value: number;
+  source: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  expectedCloseDate: string | null;
+  notes: string | null;
+  convertedProjectId: string | null;
+  openTaskCount: number;
+  overdueTaskCount: number;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LeadActivityKind = "note" | "call" | "email" | "meeting" | "stage_change";
+
+export interface CrmLeadActivity {
+  id: string;
+  leadId: string;
+  kind: LeadActivityKind;
+  content: string;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface CrmLeadTask {
+  id: string;
+  leadId: string;
+  leadTitle: string | null;
+  title: string;
+  dueDate: string;
+  done: boolean;
+  overdue: boolean;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Projects — minimal real table. Grows later (tasks, members, comments)
+// without changing this shape; a project can optionally trace back to the
+// lead that became it.
+// ---------------------------------------------------------------------------
+
+export type ProjectRowStatus = "on_track" | "at_risk" | "delayed" | "completed";
+
+export interface Project {
+  id: string;
+  name: string;
+  clientName: string | null;
+  companyId: string | null;
+  companyName: string | null;
+  status: ProjectRowStatus;
+  sourceLeadId: string | null;
+  sourceLeadTitle: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+SANESTIX_EOF
+
+echo "2/3 -- Restoring src/lib/supabase/queries.ts (CRM + Projects queries)..."
+cat > "src/lib/supabase/queries.ts" << 'SANESTIX_EOF'
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -18,10 +407,6 @@ import type {
   LoanBalance,
   LoanEntry,
   Project,
-  ProjectDetail,
-  ProjectPerson,
-  ProjectTask,
-  TaskComment,
   ProfitDistribution,
   ProjectStatusSlice,
   RevenuePoint,
@@ -936,47 +1321,32 @@ export async function getCrmData(): Promise<{ kpis: KpiCard[]; salesFunnel: Funn
 // handoff instead of two disconnected modules.
 // ---------------------------------------------------------------------------
 
-export async function getProjects(): Promise<ProjectDetail[]> {
+export async function getProjects(): Promise<Project[]> {
   const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select(
+      "id, name, client_name, company_id, status, source_lead_id, notes, created_at, profiles(full_name), crm_companies(name), crm_leads(title)"
+    )
+    .order("created_at", { ascending: false });
 
-  const [{ data: projects, error: projError }, { data: tasks, error: taskError }] =
-    await Promise.all([
-      supabase
-        .from("projects")
-        .select(
-          "id, name, client_name, description, status, owner_id, start_date, end_date, budget, created_at, profiles!projects_owner_id_fkey(full_name)"
-        )
-        .order("created_at", { ascending: false }),
-      supabase.from("tasks").select("id, project_id, status, due_date"),
-    ]);
+  if (error) throw new Error(`Failed to load projects: ${error.message}`);
 
-  if (projError) throw new Error(`Failed to load projects: ${projError.message}`);
-  if (taskError) throw new Error(`Failed to load tasks: ${taskError.message}`);
-
-  const todayIso = new Date().toISOString().slice(0, 10);
-
-  return (projects ?? []).map((row) => {
-    const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    const projectTasks = (tasks ?? []).filter((t) => t.project_id === row.id);
-    const doneTaskCount = projectTasks.filter((t) => t.status === "done").length;
-    const overdueTaskCount = projectTasks.filter(
-      (t) => t.status !== "done" && t.due_date && t.due_date < todayIso
-    ).length;
-
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    const company = Array.isArray(row.crm_companies) ? row.crm_companies[0] : row.crm_companies;
+    const lead = Array.isArray(row.crm_leads) ? row.crm_leads[0] : row.crm_leads;
     return {
       id: row.id,
       name: row.name,
       clientName: row.client_name,
-      description: row.description,
+      companyId: row.company_id,
+      companyName: company?.name ?? null,
       status: row.status,
-      ownerId: row.owner_id,
-      ownerName: owner?.full_name ?? null,
-      startDate: row.start_date,
-      endDate: row.end_date,
-      budget: row.budget !== null ? Number(row.budget) : null,
-      taskCount: projectTasks.length,
-      doneTaskCount,
-      overdueTaskCount,
+      sourceLeadId: row.source_lead_id,
+      sourceLeadTitle: lead?.title ?? null,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,
     };
   });
@@ -1027,142 +1397,193 @@ export async function getProjectsData(): Promise<{
 
   return { kpis, projectStatus };
 }
+SANESTIX_EOF
 
-// ---------------------------------------------------------------------------
-// Projects — Kanban detail (used by /projects/[id])
-// ---------------------------------------------------------------------------
+echo "3/3 -- Restoring src/lib/data.ts (merges Finance + CRM + Projects)..."
+cat > "src/lib/data.ts" << 'SANESTIX_EOF'
+import type { DashboardData } from "./types";
+import { getFinanceData, getCrmData, getProjectsData } from "./supabase/queries";
 
-/**
- * One project by id, shaped for the detail page (task counts, owner name,
- * budget/timeline). Returns null if it doesn't exist / isn't visible under
- * RLS.
- */
-export async function getProjectById(projectId: string): Promise<ProjectDetail | null> {
-  const supabase = await createClient();
+// -----------------------------------------------------------------------
+// STATUS (update this comment as modules go live):
+//   Finance   → REAL, from Supabase (finance_transactions + invoices)
+//   Projects  → REAL, from Supabase (projects)
+//   CRM       → REAL, from Supabase (crm_leads + friends)
+//
+// The mock block below now only supplies the activity feed and the one
+// "Overdue Tasks" KPI, since Projects doesn't have its own task table yet
+// (that's the next phase — a proper Kanban with tasks/assignees/due dates).
+// -----------------------------------------------------------------------
 
-  const [{ data: row, error: projError }, { data: tasks, error: taskError }] = await Promise.all([
-    supabase
-      .from("projects")
-      .select(
-        "id, name, client_name, description, status, owner_id, start_date, end_date, budget, created_at, profiles!projects_owner_id_fkey(full_name)"
-      )
-      .eq("id", projectId)
-      .maybeSingle(),
-    supabase.from("tasks").select("id, project_id, status, due_date").eq("project_id", projectId),
+const MOCK_DASHBOARD_DATA: DashboardData = {
+  generatedAt: new Date().toISOString(),
+  kpis: [
+    {
+      id: "revenue-mtd",
+      label: "Revenue (MTD)",
+      value: "48.2",
+      unit: "K",
+      delta: "+12.4% vs last month",
+      trend: "up",
+      tone: "primary",
+      sourceModule: "finance",
+    },
+    {
+      id: "outstanding-invoices",
+      label: "Outstanding Invoices",
+      value: "9",
+      delta: "$18.6K overdue",
+      trend: "flat",
+      tone: "warning",
+      sourceModule: "finance",
+    },
+    {
+      id: "active-projects",
+      label: "Active Projects",
+      value: "14",
+      delta: "3 due this week",
+      trend: "flat",
+      tone: "neutral",
+      sourceModule: "projects",
+    },
+    {
+      id: "overdue-tasks",
+      label: "Overdue Tasks",
+      value: "6",
+      delta: "+2 since Monday",
+      trend: "up",
+      tone: "error",
+      sourceModule: "projects",
+    },
+    {
+      id: "open-leads",
+      label: "Open Leads",
+      value: "31",
+      delta: "+5 this week",
+      trend: "up",
+      tone: "primary",
+      sourceModule: "crm",
+    },
+    {
+      id: "pipeline-value",
+      label: "Pipeline Value",
+      value: "126",
+      unit: "K",
+      delta: "8 in final stage",
+      trend: "up",
+      tone: "success",
+      sourceModule: "crm",
+    },
+  ],
+  revenueTrend: [
+    { month: "Feb", revenue: 31200, expenses: 21400 },
+    { month: "Mar", revenue: 33800, expenses: 22100 },
+    { month: "Apr", revenue: 29600, expenses: 20800 },
+    { month: "May", revenue: 37450, expenses: 23950 },
+    { month: "Jun", revenue: 41200, expenses: 25100 },
+    { month: "Jul", revenue: 48200, expenses: 26700 },
+  ],
+  cashFlow: [
+    { month: "Feb", inflow: 34500, outflow: 24100, net: 10400 },
+    { month: "Mar", inflow: 36200, outflow: 25300, net: 10900 },
+    { month: "Apr", inflow: 30100, outflow: 23600, net: 6500 },
+    { month: "May", inflow: 39800, outflow: 26200, net: 13600 },
+    { month: "Jun", inflow: 43900, outflow: 27400, net: 16500 },
+    { month: "Jul", inflow: 50100, outflow: 28900, net: 21200 },
+  ],
+  salesFunnel: [
+    { stage: "Leads", count: 142 },
+    { stage: "Contacted", count: 96 },
+    { stage: "Qualified", count: 58 },
+    { stage: "Proposal", count: 27 },
+    { stage: "Closed Won", count: 12 },
+  ],
+  projectStatus: [
+    { status: "On Track", count: 8 },
+    { status: "At Risk", count: 3 },
+    { status: "Delayed", count: 2 },
+    { status: "Completed", count: 5 },
+  ],
+  activity: [
+    {
+      id: "act-1",
+      kind: "invoice_due",
+      title: "Invoice #INV-2291 due tomorrow",
+      detail: "Northwind Logistics — $6,400 net-15",
+      timestamp: "12m ago",
+      module: "finance",
+    },
+    {
+      id: "act-2",
+      kind: "task_overdue",
+      title: "Task overdue — API rate limiting",
+      detail: "Project: Atlas Migration · assigned to D. Farooq",
+      timestamp: "38m ago",
+      module: "projects",
+    },
+    {
+      id: "act-3",
+      kind: "lead_new",
+      title: "New lead — Marwaa Memorials (Enterprise)",
+      detail: "Inbound via website form, routed to Sales",
+      timestamp: "1h ago",
+      module: "crm",
+    },
+    {
+      id: "act-4",
+      kind: "invoice_paid",
+      title: "Payment received — INV-2287",
+      detail: "Cedar & Co — $12,900 cleared",
+      timestamp: "2h ago",
+      module: "finance",
+    },
+    {
+      id: "act-5",
+      kind: "project_delay",
+      title: "Project delayed — Client Portal v2",
+      detail: "Slipped 4 days, blocked on design sign-off",
+      timestamp: "3h ago",
+      module: "projects",
+    },
+    {
+      id: "act-6",
+      kind: "meeting_booked",
+      title: "Meeting booked — Fintoku demo",
+      detail: "Thu 3:00 PM with N. Aslam",
+      timestamp: "5h ago",
+      module: "crm",
+    },
+  ],
+};
+
+export async function getDashboardData(): Promise<DashboardData> {
+  // Only "Overdue Tasks" stays mock — Projects doesn't have a tasks table yet.
+  const mockOnlyKpiIds = new Set(["overdue-tasks"]);
+  const mockOnlyKpis = MOCK_DASHBOARD_DATA.kpis.filter((k) => mockOnlyKpiIds.has(k.id));
+
+  const [finance, crm, projects] = await Promise.all([
+    getFinanceData(),
+    getCrmData(),
+    getProjectsData(),
   ]);
 
-  if (projError) throw new Error(`Failed to load project: ${projError.message}`);
-  if (taskError) throw new Error(`Failed to load tasks: ${taskError.message}`);
-  if (!row) return null;
-
-  const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const projectTasks = tasks ?? [];
-  const doneTaskCount = projectTasks.filter((t) => t.status === "done").length;
-  const overdueTaskCount = projectTasks.filter(
-    (t) => t.status !== "done" && t.due_date && t.due_date < todayIso
-  ).length;
-
   return {
-    id: row.id,
-    name: row.name,
-    clientName: row.client_name,
-    description: row.description,
-    status: row.status,
-    ownerId: row.owner_id,
-    ownerName: owner?.full_name ?? null,
-    startDate: row.start_date,
-    endDate: row.end_date,
-    budget: row.budget !== null ? Number(row.budget) : null,
-    taskCount: projectTasks.length,
-    doneTaskCount,
-    overdueTaskCount,
-    createdAt: row.created_at,
+    ...MOCK_DASHBOARD_DATA,
+    generatedAt: new Date().toISOString(),
+    kpis: [...finance.kpis, ...projects.kpis, ...crm.kpis, ...mockOnlyKpis],
+    revenueTrend: finance.revenueTrend.length ? finance.revenueTrend : MOCK_DASHBOARD_DATA.revenueTrend,
+    cashFlow: finance.cashFlow.length ? finance.cashFlow : MOCK_DASHBOARD_DATA.cashFlow,
+    salesFunnel: crm.salesFunnel.some((s) => s.count > 0) ? crm.salesFunnel : MOCK_DASHBOARD_DATA.salesFunnel,
+    projectStatus: projects.projectStatus.some((s) => s.count > 0)
+      ? projects.projectStatus
+      : MOCK_DASHBOARD_DATA.projectStatus,
   };
 }
+SANESTIX_EOF
 
-/**
- * Everyone assigned to a project (project_members), joined with their name.
- */
-export async function getProjectMembers(projectId: string): Promise<ProjectPerson[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("project_members")
-    .select("member_id, profiles!project_members_member_id_fkey(id, full_name)")
-    .eq("project_id", projectId);
+echo ""
+echo "Building to verify everything compiles..."
+npm run build
 
-  if (error) throw new Error(`Failed to load project_members: ${error.message}`);
-
-  return (data ?? []).map((row) => {
-    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    return { id: profile?.id ?? row.member_id, fullName: profile?.full_name ?? null };
-  });
-}
-
-/**
- * Every task on a project, ordered for the Kanban board, each with its
- * assignees and full comment thread already attached (this is a small
- * internal tool — one round trip per project is plenty).
- */
-export async function getProjectTasks(projectId: string): Promise<ProjectTask[]> {
-  const supabase = await createClient();
-
-  const { data: taskRows, error } = await supabase
-    .from("tasks")
-    .select(
-      "id, project_id, title, description, status, priority, due_date, position, created_at, profiles!tasks_created_by_fkey(full_name), task_assignees(member_id, profiles!task_assignees_member_id_fkey(id, full_name))"
-    )
-    .eq("project_id", projectId)
-    .order("position", { ascending: true });
-
-  if (error) throw new Error(`Failed to load tasks: ${error.message}`);
-
-  const taskIds = (taskRows ?? []).map((t) => t.id);
-
-  const { data: commentRows, error: commentError } = taskIds.length
-    ? await supabase
-        .from("task_comments")
-        .select("id, task_id, body, created_at, profiles!task_comments_author_id_fkey(full_name)")
-        .in("task_id", taskIds)
-        .order("created_at", { ascending: true })
-    : { data: [], error: null };
-
-  if (commentError) throw new Error(`Failed to load task_comments: ${commentError.message}`);
-
-  return (taskRows ?? []).map((row) => {
-    const creator = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-
-    const assignees: ProjectPerson[] = (row.task_assignees ?? []).map((a) => {
-      const profile = Array.isArray(a.profiles) ? a.profiles[0] : a.profiles;
-      return { id: profile?.id ?? a.member_id, fullName: profile?.full_name ?? null };
-    });
-
-    const comments: TaskComment[] = (commentRows ?? [])
-      .filter((c) => c.task_id === row.id)
-      .map((c) => {
-        const author = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-        return {
-          id: c.id,
-          taskId: c.task_id,
-          authorName: author?.full_name ?? null,
-          body: c.body,
-          createdAt: c.created_at,
-        };
-      });
-
-    return {
-      id: row.id,
-      projectId: row.project_id,
-      title: row.title,
-      description: row.description,
-      status: row.status,
-      priority: row.priority,
-      dueDate: row.due_date,
-      position: Number(row.position),
-      assignees,
-      comments,
-      createdByName: creator?.full_name ?? null,
-      createdAt: row.created_at,
-    };
-  });
-}
+echo ""
+echo "Done. Restart your app (pm2 restart ... / docker compose up -d --build) and check /projects and /crm both work."

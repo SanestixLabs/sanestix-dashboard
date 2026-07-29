@@ -1,3 +1,12 @@
+#!/usr/bin/env bash
+# Fix part 3: getProjects() now returns the rich shape
+# (ownerName, budget, taskCount, doneTaskCount, overdueTaskCount)
+# that your actual /projects/page.tsx expects.
+# Run from the ROOT of your repo.
+set -e
+
+echo "1/1 -- Overwriting src/lib/supabase/queries.ts (getProjects returns rich shape)..."
+cat > "src/lib/supabase/queries.ts" << 'SANESTIX_EOF'
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -1166,3 +1175,8 @@ export async function getProjectTasks(projectId: string): Promise<ProjectTask[]>
     };
   });
 }
+SANESTIX_EOF
+
+echo ""
+echo "Building to verify everything compiles..."
+npm run build

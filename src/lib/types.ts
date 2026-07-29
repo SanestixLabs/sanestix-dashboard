@@ -373,3 +373,57 @@ export interface Project {
   createdByName: string | null;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Projects — Kanban detail (tasks, assignees, comments). Separate from the
+// lightweight `Project` row type used by the /projects list page; this is
+// the richer shape used by the /projects/[id] detail page + task board.
+// ---------------------------------------------------------------------------
+
+export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export interface ProjectPerson {
+  id: string;
+  fullName: string | null;
+}
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorName: string | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  position: number;
+  assignees: ProjectPerson[];
+  comments: TaskComment[];
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface ProjectDetail {
+  id: string;
+  name: string;
+  clientName: string | null;
+  description: string | null;
+  status: ProjectRowStatus;
+  ownerId: string | null;
+  ownerName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  budget: number | null;
+  taskCount: number;
+  doneTaskCount: number;
+  overdueTaskCount: number;
+  createdAt: string;
+}

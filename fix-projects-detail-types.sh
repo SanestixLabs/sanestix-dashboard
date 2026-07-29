@@ -1,3 +1,446 @@
+#!/usr/bin/env bash
+# Fix part 2: add the missing Kanban-detail types/queries
+# (getProjectById, getProjectMembers, getProjectTasks, ProjectTask, etc.)
+# that the /projects/[id] page and Kanban components need but that got
+# left out of lib/types.ts / lib/supabase/queries.ts.
+# Run from the ROOT of your repo.
+set -e
+
+echo "1/2 -- Overwriting src/lib/types.ts (adds Kanban task/board types)..."
+cat > "src/lib/types.ts" << 'SANESTIX_EOF'
+// Domain types for Sanestix OS — Phase 1 modules (Finance, Projects, CRM)
+// These mirror the shape the FastAPI backend is expected to return per
+// Sanestix-OS-Roadmap.md §1.5 (Executive Dashboard, real data from
+// Finance + Projects + CRM). Swap `lib/data.ts` for real fetch calls
+// against these same shapes when the backend ships.
+
+export type TrendDirection = "up" | "down" | "flat";
+
+export interface KpiCard {
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+  delta?: string;
+  trend?: TrendDirection;
+  tone?: "primary" | "neutral" | "success" | "warning" | "error";
+  sourceModule: "finance" | "projects" | "crm";
+}
+
+export interface RevenuePoint {
+  month: string;
+  revenue: number;
+  expenses: number;
+}
+
+export interface CashFlowPoint {
+  month: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+}
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+}
+
+export interface ProjectStatusSlice {
+  status: "On Track" | "At Risk" | "Delayed" | "Completed";
+  count: number;
+}
+
+export type ActivityKind =
+  | "invoice_due"
+  | "invoice_paid"
+  | "task_overdue"
+  | "project_delay"
+  | "lead_new"
+  | "meeting_booked";
+
+export interface ActivityItem {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  detail: string;
+  timestamp: string; // relative label, e.g. "2m ago"
+  module: "finance" | "projects" | "crm";
+}
+
+export interface DashboardData {
+  kpis: KpiCard[];
+  revenueTrend: RevenuePoint[];
+  cashFlow: CashFlowPoint[];
+  salesFunnel: FunnelStage[];
+  projectStatus: ProjectStatusSlice[];
+  activity: ActivityItem[];
+  generatedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Transactions + Invoices — the raw ledger behind the Overview KPIs/charts.
+// ---------------------------------------------------------------------------
+
+export type TransactionKind = "revenue" | "expense";
+
+export interface Transaction {
+  id: string;
+  occurredOn: string;
+  kind: TransactionKind;
+  category: string | null;
+  amount: number;
+  note: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+}
+
+export type InvoiceStatus = "outstanding" | "paid" | "overdue";
+
+export interface Invoice {
+  id: string;
+  clientName: string;
+  amount: number;
+  status: InvoiceStatus;
+  dueDate: string;
+  proofUrl: string | null;
+  createdByName: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Founder loans + profit distribution ("loan recovery" / "profit split")
+// ---------------------------------------------------------------------------
+
+export interface Founder {
+  id: string;
+  fullName: string | null;
+}
+
+export type LoanDirection = "loan_in" | "repayment_out";
+
+export interface LoanEntry {
+  id: string;
+  founderId: string;
+  founderName: string | null;
+  occurredOn: string;
+  description: string;
+  direction: LoanDirection;
+  amount: number;
+}
+
+export interface LoanBalance {
+  founderId: string;
+  founderName: string | null;
+  totalLoaned: number;
+  totalRepaid: number;
+  outstanding: number;
+}
+
+export interface ProfitDistribution {
+  id: string;
+  periodMonth: string;
+  grossProfit: number;
+  capitalReserve: number;
+  loanRepayment: number;
+  distributableProfit: number;
+  charityPct: number;
+  charityAmount: number;
+  perFounderAmount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ProfitSplitSuggestion {
+  periodMonth: string;
+  grossProfit: number;
+  outstandingLoanBalance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 registers — Vendors, Subscriptions, Assets, Debts, Employees
+// ---------------------------------------------------------------------------
+
+export type VendorStatus = "active" | "inactive";
+
+export interface Vendor {
+  id: string;
+  name: string;
+  category: string | null;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  paymentTerms: string | null;
+  status: VendorStatus;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type BillingCycle = "monthly" | "annual";
+export type SubscriptionStatus = "active" | "cancelled";
+
+export interface Subscription {
+  id: string;
+  vendorName: string;
+  cost: number;
+  billingCycle: BillingCycle;
+  renewalDate: string | null;
+  owner: string | null;
+  status: SubscriptionStatus;
+  notes: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type AssetCondition = "new" | "good" | "fair" | "poor" | "disposed";
+
+export interface Asset {
+  id: string;
+  name: string;
+  purchaseDate: string;
+  cost: number;
+  owner: string | null;
+  condition: AssetCondition;
+  serialNumber: string | null;
+  notes: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type DebtStatus = "outstanding" | "paid" | "overdue";
+
+export interface Debt {
+  id: string;
+  counterparty: string;
+  principal: number;
+  paidAmount: number;
+  remainingBalance: number;
+  dueDate: string | null;
+  status: DebtStatus;
+  notes: string | null;
+  proofUrl: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type EmployeeStatus = "active" | "inactive";
+
+export interface Employee {
+  id: string;
+  fullName: string;
+  role: string | null;
+  salary: number | null;
+  startDate: string | null;
+  status: EmployeeStatus;
+  payDay: number | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Upcoming payments — combined view of money due out (debts, subscription
+// renewals) vs. money due in (unpaid invoices), for the Finance overview.
+// ---------------------------------------------------------------------------
+
+export type UpcomingPaymentDirection = "due" | "to_receive";
+export type UpcomingPaymentSource = "invoice" | "debt" | "subscription" | "employee";
+
+export interface UpcomingPayment {
+  id: string;
+  direction: UpcomingPaymentDirection;
+  source: UpcomingPaymentSource;
+  label: string;
+  amount: number;
+  dueDate: string;
+  overdue: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Employee salary payments — payroll history with optional proof-of-payment
+// image, so each payday can be marked paid and audited later.
+// ---------------------------------------------------------------------------
+
+export interface EmployeePayment {
+  id: string;
+  employeeId: string;
+  employeeName: string | null;
+  amount: number;
+  payPeriod: string; // first day of the month this payment covers, e.g. "2026-07-01"
+  paidOn: string;
+  proofUrl: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// CRM — Companies, Contacts, Leads (pipeline), activity log, follow-up tasks.
+// A "won" lead auto-creates a draft Project (see app/crm/actions.ts), which
+// is the real cross-module link the roadmap calls for.
+// ---------------------------------------------------------------------------
+
+export interface CrmCompany {
+  id: string;
+  name: string;
+  industry: string | null;
+  website: string | null;
+  notes: string | null;
+  contactCount: number;
+  leadCount: number;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface CrmContact {
+  id: string;
+  companyId: string | null;
+  companyName: string | null;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+
+export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "qualified", label: "Qualified" },
+  { value: "proposal", label: "Proposal" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+export interface CrmLead {
+  id: string;
+  title: string;
+  companyId: string | null;
+  companyName: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  stage: LeadStage;
+  value: number;
+  source: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  expectedCloseDate: string | null;
+  notes: string | null;
+  convertedProjectId: string | null;
+  openTaskCount: number;
+  overdueTaskCount: number;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LeadActivityKind = "note" | "call" | "email" | "meeting" | "stage_change";
+
+export interface CrmLeadActivity {
+  id: string;
+  leadId: string;
+  kind: LeadActivityKind;
+  content: string;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface CrmLeadTask {
+  id: string;
+  leadId: string;
+  leadTitle: string | null;
+  title: string;
+  dueDate: string;
+  done: boolean;
+  overdue: boolean;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Projects — minimal real table. Grows later (tasks, members, comments)
+// without changing this shape; a project can optionally trace back to the
+// lead that became it.
+// ---------------------------------------------------------------------------
+
+export type ProjectRowStatus = "on_track" | "at_risk" | "delayed" | "completed";
+
+export interface Project {
+  id: string;
+  name: string;
+  clientName: string | null;
+  companyId: string | null;
+  companyName: string | null;
+  status: ProjectRowStatus;
+  sourceLeadId: string | null;
+  sourceLeadTitle: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Projects — Kanban detail (tasks, assignees, comments). Separate from the
+// lightweight `Project` row type used by the /projects list page; this is
+// the richer shape used by the /projects/[id] detail page + task board.
+// ---------------------------------------------------------------------------
+
+export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export interface ProjectPerson {
+  id: string;
+  fullName: string | null;
+}
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorName: string | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  position: number;
+  assignees: ProjectPerson[];
+  comments: TaskComment[];
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface ProjectDetail {
+  id: string;
+  name: string;
+  clientName: string | null;
+  description: string | null;
+  status: ProjectRowStatus;
+  ownerId: string | null;
+  ownerName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  budget: number | null;
+  taskCount: number;
+  doneTaskCount: number;
+  overdueTaskCount: number;
+  createdAt: string;
+}
+SANESTIX_EOF
+
+echo "2/2 -- Overwriting src/lib/supabase/queries.ts (adds getProjectById/getProjectMembers/getProjectTasks)..."
+cat > "src/lib/supabase/queries.ts" << 'SANESTIX_EOF'
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -936,47 +1379,32 @@ export async function getCrmData(): Promise<{ kpis: KpiCard[]; salesFunnel: Funn
 // handoff instead of two disconnected modules.
 // ---------------------------------------------------------------------------
 
-export async function getProjects(): Promise<ProjectDetail[]> {
+export async function getProjects(): Promise<Project[]> {
   const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .select(
+      "id, name, client_name, company_id, status, source_lead_id, notes, created_at, profiles(full_name), crm_companies(name), crm_leads(title)"
+    )
+    .order("created_at", { ascending: false });
 
-  const [{ data: projects, error: projError }, { data: tasks, error: taskError }] =
-    await Promise.all([
-      supabase
-        .from("projects")
-        .select(
-          "id, name, client_name, description, status, owner_id, start_date, end_date, budget, created_at, profiles!projects_owner_id_fkey(full_name)"
-        )
-        .order("created_at", { ascending: false }),
-      supabase.from("tasks").select("id, project_id, status, due_date"),
-    ]);
+  if (error) throw new Error(`Failed to load projects: ${error.message}`);
 
-  if (projError) throw new Error(`Failed to load projects: ${projError.message}`);
-  if (taskError) throw new Error(`Failed to load tasks: ${taskError.message}`);
-
-  const todayIso = new Date().toISOString().slice(0, 10);
-
-  return (projects ?? []).map((row) => {
-    const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    const projectTasks = (tasks ?? []).filter((t) => t.project_id === row.id);
-    const doneTaskCount = projectTasks.filter((t) => t.status === "done").length;
-    const overdueTaskCount = projectTasks.filter(
-      (t) => t.status !== "done" && t.due_date && t.due_date < todayIso
-    ).length;
-
+  return (data ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    const company = Array.isArray(row.crm_companies) ? row.crm_companies[0] : row.crm_companies;
+    const lead = Array.isArray(row.crm_leads) ? row.crm_leads[0] : row.crm_leads;
     return {
       id: row.id,
       name: row.name,
       clientName: row.client_name,
-      description: row.description,
+      companyId: row.company_id,
+      companyName: company?.name ?? null,
       status: row.status,
-      ownerId: row.owner_id,
-      ownerName: owner?.full_name ?? null,
-      startDate: row.start_date,
-      endDate: row.end_date,
-      budget: row.budget !== null ? Number(row.budget) : null,
-      taskCount: projectTasks.length,
-      doneTaskCount,
-      overdueTaskCount,
+      sourceLeadId: row.source_lead_id,
+      sourceLeadTitle: lead?.title ?? null,
+      notes: row.notes,
+      createdByName: profile?.full_name ?? null,
       createdAt: row.created_at,
     };
   });
@@ -1166,3 +1594,12 @@ export async function getProjectTasks(projectId: string): Promise<ProjectTask[]>
     };
   });
 }
+SANESTIX_EOF
+
+echo ""
+echo "Building to verify everything compiles..."
+npm run build
+
+echo ""
+echo "Done. Next: run schema-patch.sql, then supabase/schema-phase5-projects.sql,"
+echo "in the Supabase SQL editor, then restart your app."
