@@ -7,16 +7,25 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
 import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
 import { TaskToggleCheckbox } from "@/components/crm/task-toggle-checkbox";
-import { getCrmLead, getLeadActivities, getOpenLeadTasks } from "@/lib/supabase/queries";
+import { EditToggle } from "@/components/crm/edit-toggle";
 import {
+  getCrmLead,
+  getLeadActivities,
+  getOpenLeadTasks,
+  getCrmCompanies,
+  getCrmContacts,
+} from "@/lib/supabase/queries";
+import {
+  updateLead,
   updateLeadStage,
+  updateLeadLostReason,
   deleteLead,
   addLeadNote,
   addLeadTask,
   toggleLeadTask,
   deleteLeadTask,
 } from "@/app/(dashboard)/crm/actions";
-import { LEAD_STAGES, type LeadStage } from "@/lib/types";
+import { LEAD_STAGES, LOST_REASONS, type LeadStage } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -50,9 +59,11 @@ export default async function LeadDetailPage({
   const lead = await getCrmLead(id);
   if (!lead) notFound();
 
-  const [activities, allOpenTasks] = await Promise.all([
+  const [activities, allOpenTasks, companies, contacts] = await Promise.all([
     getLeadActivities(id),
     getOpenLeadTasks(),
+    getCrmCompanies(),
+    getCrmContacts(),
   ]);
   const leadTasks = allOpenTasks.filter((t) => t.leadId === id);
   const redirectTo = `/crm/leads/${id}`;
@@ -109,6 +120,12 @@ export default async function LeadDetailPage({
                 extraFields={{ redirectTo }}
               />
             </div>
+            {lead.stage === "lost" && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-on-surface-variant">Lost reason</span>
+                <span className="text-right text-on-surface">{lead.lostReason ?? "—"}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-on-surface-variant">Value</span>
               <span className="font-mono-data font-semibold text-success">
@@ -141,6 +158,145 @@ export default async function LeadDetailPage({
                 <p className="mt-1 text-on-surface">{lead.notes}</p>
               </div>
             )}
+          </div>
+
+          {lead.stage === "lost" && (
+            <div className="mt-4 border-t border-outline-variant pt-4">
+              <EditToggle label={lead.lostReason ? "Change lost reason" : "Set lost reason"}>
+                <form action={updateLeadLostReason} className="space-y-2">
+                  <input type="hidden" name="leadId" value={lead.id} />
+                  <input type="hidden" name="redirectTo" value={redirectTo} />
+                  <select
+                    name="lostReason"
+                    defaultValue={lead.lostReason ?? ""}
+                    className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                  >
+                    <option value="">— No reason —</option>
+                    {LOST_REASONS.map((reason) => (
+                      <option key={reason} value={reason}>
+                        {reason}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    className="w-full bg-primary px-3 py-1.5 font-mono-data text-[10px] uppercase tracking-wider text-on-primary transition hover:brightness-110"
+                  >
+                    Save
+                  </button>
+                </form>
+              </EditToggle>
+            </div>
+          )}
+
+          <div className="mt-4 border-t border-outline-variant pt-4">
+            <EditToggle label="Edit lead details">
+              <form action={updateLead} className="space-y-2.5">
+                <input type="hidden" name="leadId" value={lead.id} />
+                <input type="hidden" name="redirectTo" value={redirectTo} />
+                <div>
+                  <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                    Title
+                  </label>
+                  <input
+                    name="title"
+                    defaultValue={lead.title}
+                    required
+                    className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Company
+                    </label>
+                    <select
+                      name="companyId"
+                      defaultValue={lead.companyId ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    >
+                      <option value="">— None —</option>
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Contact
+                    </label>
+                    <select
+                      name="contactId"
+                      defaultValue={lead.contactId ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    >
+                      <option value="">— None —</option>
+                      {contacts.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Value (PKR)
+                    </label>
+                    <input
+                      name="value"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={lead.value}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Expected close
+                    </label>
+                    <input
+                      name="expectedCloseDate"
+                      type="date"
+                      defaultValue={lead.expectedCloseDate ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                    Source
+                  </label>
+                  <input
+                    name="source"
+                    defaultValue={lead.source ?? ""}
+                    placeholder="e.g. Referral, Website, LinkedIn"
+                    className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                    Notes
+                  </label>
+                  <textarea
+                    name="notes"
+                    rows={2}
+                    defaultValue={lead.notes ?? ""}
+                    className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-primary px-3 py-2 font-mono-data text-[11px] uppercase tracking-wider text-on-primary transition hover:brightness-110"
+                >
+                  Save changes
+                </button>
+              </form>
+            </EditToggle>
           </div>
 
           <div className="mt-6 border-t border-outline-variant pt-4">

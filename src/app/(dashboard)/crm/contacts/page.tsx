@@ -1,17 +1,27 @@
+import { Search } from "lucide-react";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
+import { ContactRow } from "@/components/crm/contact-row";
 import { getCrmContacts, getCrmCompanies } from "@/lib/supabase/queries";
-import { addContact, deleteContact } from "@/app/(dashboard)/crm/actions";
+import { addContact, updateContact, deleteContact } from "@/app/(dashboard)/crm/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const [contacts, companies] = await Promise.all([getCrmContacts(), getCrmCompanies()]);
+  const q = (params.q ?? "").trim().toLowerCase();
+  const [allContacts, companies] = await Promise.all([getCrmContacts(), getCrmCompanies()]);
+  const contacts = q
+    ? allContacts.filter(
+        (c) =>
+          c.fullName.toLowerCase().includes(q) ||
+          (c.companyName ?? "").toLowerCase().includes(q) ||
+          (c.email ?? "").toLowerCase().includes(q)
+      )
+    : allContacts;
 
   return (
     <>
@@ -116,8 +126,29 @@ export default async function ContactsPage({
         </Card>
 
         <Card className="p-6 lg:col-span-2">
-          <CardTitle>Contact Register</CardTitle>
-          <CardDescription>All contacts, newest first.</CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Contact Register</CardTitle>
+              <CardDescription>
+                {q
+                  ? `${contacts.length} of ${allContacts.length} contacts matching "${q}"`
+                  : `All ${allContacts.length} contacts, newest first.`}
+              </CardDescription>
+            </div>
+            <form className="relative w-full sm:w-56">
+              <Search
+                size={14}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant"
+              />
+              <input
+                type="text"
+                name="q"
+                defaultValue={params.q ?? ""}
+                placeholder="Search name, company, email"
+                className="w-full border border-outline-variant bg-background py-1.5 pl-8 pr-3 font-mono-data text-[12px] placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none"
+              />
+            </form>
+          </div>
 
           <div className="mt-4 max-h-[560px] overflow-auto">
             <table className="w-full min-w-[720px] text-left text-[13px]">
@@ -134,30 +165,18 @@ export default async function ContactsPage({
                 {contacts.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-6 text-center text-on-surface-variant">
-                      No contacts recorded yet.
+                      {q ? `No contacts match "${q}".` : "No contacts recorded yet."}
                     </td>
                   </tr>
                 )}
                 {contacts.map((c) => (
-                  <tr key={c.id} className="border-b border-outline-variant/50">
-                    <td className="py-2.5 pr-4 text-on-surface">{c.fullName}</td>
-                    <td className="py-2.5 pr-4 text-on-surface-variant">{c.companyName ?? "—"}</td>
-                    <td className="py-2.5 pr-4 text-on-surface-variant">{c.title ?? "—"}</td>
-                    <td className="py-2.5 pr-4 text-on-surface-variant">
-                      {c.email ?? c.phone ?? "—"}
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <div className="flex justify-end">
-                        <RegisterDeleteButton
-                          action={deleteContact}
-                          idFieldName="contactId"
-                          idValue={c.id}
-                          redirectTo="/crm/contacts"
-                          label="contact"
-                        />
-                      </div>
-                    </td>
-                  </tr>
+                  <ContactRow
+                    key={c.id}
+                    contact={c}
+                    companies={companies}
+                    updateAction={updateContact}
+                    deleteAction={deleteContact}
+                  />
                 ))}
               </tbody>
             </table>

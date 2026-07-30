@@ -49,6 +49,44 @@ export async function addCompany(formData: FormData) {
   redirect("/crm/companies");
 }
 
+export async function updateCompany(formData: FormData) {
+  const companyId = String(formData.get("companyId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const industry = String(formData.get("industry") ?? "") || null;
+  const website = String(formData.get("website") ?? "") || null;
+  const notes = String(formData.get("notes") ?? "") || null;
+  const redirectTo = "/crm/companies";
+
+  if (!companyId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing company id")}`);
+  if (!name) redirect(`${redirectTo}?error=${encodeURIComponent("Please enter a company name")}`);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("crm_companies")
+    .update({ name, industry, website, notes })
+    .eq("id", companyId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "crm_companies",
+    entityId: companyId,
+    summary: `Company "${name}" updated`,
+    notify: false,
+  });
+
+  revalidatePath(redirectTo);
+  redirect(redirectTo);
+}
+
 export async function deleteCompany(formData: FormData) {
   const companyId = String(formData.get("companyId") ?? "");
   const password = String(formData.get("password") ?? "");
@@ -130,6 +168,46 @@ export async function addContact(formData: FormData) {
 
   revalidatePath("/crm/contacts");
   redirect("/crm/contacts");
+}
+
+export async function updateContact(formData: FormData) {
+  const contactId = String(formData.get("contactId") ?? "");
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const companyId = String(formData.get("companyId") ?? "") || null;
+  const email = String(formData.get("email") ?? "") || null;
+  const phone = String(formData.get("phone") ?? "") || null;
+  const title = String(formData.get("title") ?? "") || null;
+  const notes = String(formData.get("notes") ?? "") || null;
+  const redirectTo = "/crm/contacts";
+
+  if (!contactId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing contact id")}`);
+  if (!fullName) redirect(`${redirectTo}?error=${encodeURIComponent("Please enter a contact name")}`);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("crm_contacts")
+    .update({ full_name: fullName, company_id: companyId, email, phone, title, notes })
+    .eq("id", contactId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "crm_contacts",
+    entityId: contactId,
+    summary: `Contact "${fullName}" updated`,
+    notify: false,
+  });
+
+  revalidatePath(redirectTo);
+  redirect(redirectTo);
 }
 
 export async function deleteContact(formData: FormData) {
@@ -223,6 +301,64 @@ export async function addLead(formData: FormData) {
 }
 
 /**
+ * Edit a lead's details (title, company/contact links, value, source,
+ * expected close date, notes). Deliberately does NOT touch `stage` —
+ * stage changes go through updateLeadStage below, which has the "won"
+ * → auto-create-project side effect that a plain edit shouldn't trigger.
+ */
+export async function updateLead(formData: FormData) {
+  const leadId = String(formData.get("leadId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const companyId = String(formData.get("companyId") ?? "") || null;
+  const contactId = String(formData.get("contactId") ?? "") || null;
+  const value = Number(formData.get("value") ?? 0);
+  const source = String(formData.get("source") ?? "") || null;
+  const expectedCloseDate = String(formData.get("expectedCloseDate") ?? "") || null;
+  const notes = String(formData.get("notes") ?? "") || null;
+  const redirectTo = String(formData.get("redirectTo") ?? "/crm");
+
+  if (!leadId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing lead id")}`);
+  if (!title || value < 0) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Please fill in the lead title with a valid value")}`);
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("crm_leads")
+    .update({
+      title,
+      company_id: companyId,
+      contact_id: contactId,
+      value,
+      source,
+      expected_close_date: expectedCloseDate,
+      notes,
+    })
+    .eq("id", leadId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "crm_leads",
+    entityId: leadId,
+    summary: `Lead "${title}" details updated`,
+    notify: false,
+  });
+
+  revalidatePath("/crm");
+  revalidatePath(`/crm/leads/${leadId}`);
+  redirect(redirectTo);
+}
+
+/**
  * Move a lead to a new pipeline stage. Moving a lead to "won" auto-creates
  * a draft Project row and links it back via converted_project_id — this is
  * the real CRM → Projects handoff (not just two disconnected modules).
@@ -300,6 +436,61 @@ export async function updateLeadStage(formData: FormData) {
   revalidatePath("/crm");
   revalidatePath(`/crm/leads/${leadId}`);
   revalidatePath("/projects");
+  redirect(redirectTo);
+}
+
+/**
+ * Set or change why a "lost" lead was lost. Kept as its own tiny action
+ * (rather than a field on updateLeadStage) because the stage dropdown
+ * auto-submits on change — there's no good moment in that flow to also
+ * collect a reason, so it's captured separately on the lead detail page
+ * once the lead is already in the "lost" stage.
+ */
+export async function updateLeadLostReason(formData: FormData) {
+  const leadId = String(formData.get("leadId") ?? "");
+  const lostReason = String(formData.get("lostReason") ?? "").trim() || null;
+  const redirectTo = String(formData.get("redirectTo") ?? "/crm");
+
+  if (!leadId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing lead id")}`);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: lead } = await supabase
+    .from("crm_leads")
+    .select("title, stage")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  if (!lead) redirect(`${redirectTo}?error=${encodeURIComponent("Lead not found")}`);
+  if (lead.stage !== "lost") {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Only a lost lead can have a lost reason")}`);
+  }
+
+  const { error } = await supabase
+    .from("crm_leads")
+    .update({ lost_reason: lostReason })
+    .eq("id", leadId);
+
+  if (error) redirect(`${redirectTo}?error=${encodeURIComponent(error.message)}`);
+
+  await recordActivity({
+    supabase,
+    actorId: user?.id ?? null,
+    actorEmail: user?.email ?? null,
+    action: "update",
+    entity: "crm_leads",
+    entityId: leadId,
+    summary: lostReason
+      ? `Lost reason for "${lead.title}" set to "${lostReason}"`
+      : `Lost reason for "${lead.title}" cleared`,
+    notify: false,
+  });
+
+  revalidatePath("/crm");
+  revalidatePath(`/crm/leads/${leadId}`);
   redirect(redirectTo);
 }
 

@@ -762,7 +762,7 @@ export async function getCrmLeads(): Promise<CrmLead[]> {
       .from("crm_leads")
       .select(
         `id, title, company_id, contact_id, stage, value, source, owner_id,
-         expected_close_date, notes, converted_project_id, created_at, updated_at,
+         expected_close_date, notes, lost_reason, converted_project_id, created_at, updated_at,
          crm_companies(name),
          crm_contacts(full_name, email),
          owner:profiles!crm_leads_owner_id_fkey(full_name),
@@ -805,6 +805,7 @@ export async function getCrmLeads(): Promise<CrmLead[]> {
       ownerName: owner?.full_name ?? null,
       expectedCloseDate: row.expected_close_date,
       notes: row.notes,
+      lostReason: row.lost_reason,
       convertedProjectId: row.converted_project_id,
       openTaskCount: openTaskCounts.get(row.id) ?? 0,
       overdueTaskCount: overdueTaskCounts.get(row.id) ?? 0,

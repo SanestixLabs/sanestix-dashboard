@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
 import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
@@ -23,14 +24,24 @@ const BOARD_STAGES = LEAD_STAGES.filter((s) => s.value !== "lost");
 export default async function CrmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const [leads, companies, contacts] = await Promise.all([
+  const q = (params.q ?? "").trim().toLowerCase();
+  const [allLeads, companies, contacts] = await Promise.all([
     getCrmLeads(),
     getCrmCompanies(),
     getCrmContacts(),
   ]);
+
+  const leads = q
+    ? allLeads.filter(
+        (l) =>
+          l.title.toLowerCase().includes(q) ||
+          (l.companyName ?? "").toLowerCase().includes(q) ||
+          (l.contactName ?? "").toLowerCase().includes(q)
+      )
+    : allLeads;
 
   const openLeads = leads.filter((l) => l.stage !== "won" && l.stage !== "lost");
   const pipelineValue = openLeads.reduce((sum, l) => sum + l.value, 0);
@@ -40,7 +51,15 @@ export default async function CrmPage({
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
-  const lostCount = leads.filter((l) => l.stage === "lost").length;
+  const lostLeads = leads.filter((l) => l.stage === "lost");
+  const lostCount = lostLeads.length;
+
+  const lostReasonCounts = new Map<string, number>();
+  for (const lead of lostLeads) {
+    const key = lead.lostReason ?? "No reason recorded";
+    lostReasonCounts.set(key, (lostReasonCounts.get(key) ?? 0) + 1);
+  }
+  const lostReasonBreakdown = [...lostReasonCounts.entries()].sort((a, b) => b[1] - a[1]);
 
   return (
     <>
@@ -52,7 +71,28 @@ export default async function CrmPage({
             automatically.
           </p>
         </div>
+        <form className="relative w-full sm:w-64">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant"
+          />
+          <input
+            type="text"
+            name="q"
+            defaultValue={params.q ?? ""}
+            placeholder="Search title, company, contact"
+            className="w-full border border-outline-variant bg-background py-2 pl-8 pr-3 font-mono-data text-[12px] placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none"
+          />
+        </form>
       </div>
+      {q && (
+        <p className="text-[12px] text-on-surface-variant">
+          Showing {leads.length} of {allLeads.length} leads matching &quot;{q}&quot; ·{" "}
+          <Link href="/crm" className="text-primary hover:underline">
+            clear
+          </Link>
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="p-4">
@@ -84,6 +124,25 @@ export default async function CrmPage({
           </p>
         </Card>
       </div>
+
+      {lostReasonBreakdown.length > 0 && (
+        <Card className="p-4">
+          <p className="mb-3 text-[10px] font-mono-data uppercase tracking-widest text-on-surface-variant/70">
+            Why leads are lost
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {lostReasonBreakdown.map(([reason, count]) => (
+              <span
+                key={reason}
+                className="inline-flex items-center gap-1.5 border border-outline-variant bg-background px-2.5 py-1 text-[11px] text-on-surface-variant"
+              >
+                {reason}
+                <span className="font-mono-data font-semibold text-on-surface">{count}</span>
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <Card className="p-6 lg:col-span-1">

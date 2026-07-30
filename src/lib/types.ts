@@ -306,6 +306,17 @@ export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
   { value: "lost", label: "Lost" },
 ];
 
+// Shown as a dropdown when a lead is marked "lost", so win/loss reporting
+// on the CRM pipeline page has something more useful than a raw count.
+export const LOST_REASONS = [
+  "Budget",
+  "Timing",
+  "Went with a competitor",
+  "No response / went cold",
+  "Not a good fit",
+  "Other",
+] as const;
+
 export interface CrmLead {
   id: string;
   title: string;
@@ -321,6 +332,7 @@ export interface CrmLead {
   ownerName: string | null;
   expectedCloseDate: string | null;
   notes: string | null;
+  lostReason: string | null;
   convertedProjectId: string | null;
   openTaskCount: number;
   overdueTaskCount: number;
