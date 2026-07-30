@@ -17,6 +17,7 @@ import { moveTask } from "@/app/(dashboard)/projects/actions";
 import { AddTaskForm } from "@/components/projects/add-task-form";
 import { TaskDetailModal } from "@/components/projects/task-detail-modal";
 import type { ProjectPerson, ProjectTask, TaskStatus } from "@/lib/types";
+import { TASK_LABELS } from "@/lib/types";
 
 const COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: "backlog", label: "Backlog" },
@@ -75,6 +76,19 @@ function TaskCard({ task, onOpen }: { task: ProjectTask; onOpen: (task: ProjectT
           {task.priority}
         </StatusPill>
       </div>
+
+      {task.labels.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {task.labels.map((label) => (
+            <span
+              key={label}
+              className="border border-outline-variant bg-surface-container-high/60 px-1.5 py-0.5 font-mono-data text-[9px] uppercase tracking-wider text-on-surface-variant"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
 
       {task.dueDate && (
         <p
@@ -162,6 +176,9 @@ export function TaskBoard({
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<ProjectTask | null>(null);
   const [addingTask, setAddingTask] = useState(false);
+  const [filterAssignee, setFilterAssignee] = useState("");
+  const [filterPriority, setFilterPriority] = useState("");
+  const [filterLabel, setFilterLabel] = useState("");
 
   // Server actions revalidate the page instead of redirecting (so the
   // board and any open task panel can update in place). When a fresh
@@ -178,6 +195,14 @@ export function TaskBoard({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
+
+  const visibleTasks = tasks.filter((t) => {
+    if (filterAssignee && !t.assignees.some((a) => a.id === filterAssignee)) return false;
+    if (filterPriority && t.priority !== filterPriority) return false;
+    if (filterLabel && !t.labels.includes(filterLabel)) return false;
+    return true;
+  });
+  const filtersActive = !!(filterAssignee || filterPriority || filterLabel);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -197,18 +222,74 @@ export function TaskBoard({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
           Drag a card to change its status
         </p>
-        <button
-          onClick={() => setAddingTask(true)}
-          className="flex items-center gap-1.5 bg-primary px-3 py-1.5 font-mono-data text-[11px] uppercase tracking-wider text-on-primary transition hover:brightness-110 active:scale-95"
-        >
-          <Plus size={13} />
-          Add task
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={filterAssignee}
+            onChange={(e) => setFilterAssignee(e.target.value)}
+            className="border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[11px] text-on-surface-variant focus:border-primary focus:outline-none"
+          >
+            <option value="">All assignees</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.fullName ?? "Unnamed"}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[11px] text-on-surface-variant focus:border-primary focus:outline-none"
+          >
+            <option value="">All priorities</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <select
+            value={filterLabel}
+            onChange={(e) => setFilterLabel(e.target.value)}
+            className="border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[11px] text-on-surface-variant focus:border-primary focus:outline-none"
+          >
+            <option value="">All labels</option>
+            {TASK_LABELS.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterAssignee("");
+                setFilterPriority("");
+                setFilterLabel("");
+              }}
+              className="font-mono-data text-[11px] uppercase tracking-wider text-primary hover:underline"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            onClick={() => setAddingTask(true)}
+            className="flex items-center gap-1.5 bg-primary px-3 py-1.5 font-mono-data text-[11px] uppercase tracking-wider text-on-primary transition hover:brightness-110 active:scale-95"
+          >
+            <Plus size={13} />
+            Add task
+          </button>
+        </div>
       </div>
+
+      {filtersActive && (
+        <p className="mb-2 text-[11px] text-on-surface-variant">
+          Showing {visibleTasks.length} of {tasks.length} tasks
+        </p>
+      )}
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-2">
@@ -217,7 +298,7 @@ export function TaskBoard({
               key={col.id}
               id={col.id}
               label={col.label}
-              tasks={tasks.filter((t) => t.status === col.id)}
+              tasks={visibleTasks.filter((t) => t.status === col.id)}
               onOpen={setActiveTask}
             />
           ))}

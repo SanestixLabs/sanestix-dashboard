@@ -3,9 +3,9 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { RegisterStatusForm } from "@/components/finance/register-status-form";
 import { RegisterDeleteButton } from "@/components/finance/register-delete-button";
-import { getProjects, getFounders } from "@/lib/supabase/queries";
+import { getProjects, getFounders, getMyOpenTasks } from "@/lib/supabase/queries";
 import { addProject, updateProjectStatus, deleteProject } from "@/app/(dashboard)/projects/actions";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,11 @@ export default async function ProjectsPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
-  const [projects, people] = await Promise.all([getProjects(), getFounders()]);
+  const [projects, people, myTasks] = await Promise.all([
+    getProjects(),
+    getFounders(),
+    getMyOpenTasks(),
+  ]);
 
   const activeCount = projects.filter((p) => p.status !== "completed").length;
   const overdueCount = projects.reduce((sum, p) => sum + p.overdueTaskCount, 0);
@@ -44,6 +48,64 @@ export default async function ProjectsPage({
           Client delivery workspace — projects, tasks, and ownership, live from Supabase.
         </p>
       </div>
+
+      {myTasks.length > 0 && (
+        <Card className="p-6">
+          <CardTitle>My Tasks</CardTitle>
+          <CardDescription>
+            {myTasks.length} open task{myTasks.length === 1 ? "" : "s"} assigned to you, across
+            every project — soonest due first.
+          </CardDescription>
+          <div className="mt-4 space-y-2">
+            {myTasks.slice(0, 8).map((t) => {
+              const overdueLabel =
+                t.dueDate && t.overdue ? formatRelativeDate(t.dueDate).label : null;
+              return (
+                <Link
+                  key={t.id}
+                  href={`/projects/${t.projectId}`}
+                  className="flex items-center justify-between gap-3 border border-outline-variant bg-background px-3 py-2 text-[12px] transition hover:border-primary/40"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-on-surface">{t.title}</p>
+                    <p className="truncate text-[11px] text-on-surface-variant">
+                      {t.projectName}
+                      {t.labels.length > 0 && ` · ${t.labels.join(", ")}`}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusPill
+                      tone={
+                        t.priority === "urgent"
+                          ? "error"
+                          : t.priority === "high"
+                            ? "warning"
+                            : "neutral"
+                      }
+                    >
+                      {t.priority}
+                    </StatusPill>
+                    {t.dueDate && (
+                      <span
+                        className={`font-mono-data text-[10px] uppercase tracking-wider ${
+                          overdueLabel ? "text-error" : "text-on-surface-variant"
+                        }`}
+                      >
+                        {formatRelativeDate(t.dueDate).label}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+            {myTasks.length > 8 && (
+              <p className="pt-1 text-center text-[11px] text-on-surface-variant">
+                +{myTasks.length - 8} more
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card className="p-4">

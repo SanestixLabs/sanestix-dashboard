@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { addTask } from "@/app/(dashboard)/projects/actions";
-import type { ProjectPerson } from "@/lib/types";
+import { TASK_LABELS, type ProjectPerson } from "@/lib/types";
 
 export function AddTaskForm({
   projectId,
@@ -87,6 +87,23 @@ export function AddTaskForm({
                 name="dueDate"
                 className="w-full border border-outline-variant bg-background px-3 py-2 font-mono-data text-[13px] focus:border-primary focus:outline-none"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block font-mono-data text-[11px] uppercase tracking-wider text-on-surface-variant">
+              Labels
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TASK_LABELS.map((label) => (
+                <label
+                  key={label}
+                  className="flex items-center gap-1.5 border border-outline-variant px-2 py-1 text-[11px] text-on-surface-variant"
+                >
+                  <input type="checkbox" name="labels" value={label} />
+                  {label}
+                </label>
+              ))}
             </div>
           </div>
 

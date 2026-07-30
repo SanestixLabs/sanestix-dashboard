@@ -17,6 +17,7 @@ import type {
   KpiCard,
   LoanBalance,
   LoanEntry,
+  MyTask,
   Project,
   ProjectDetail,
   ProjectPerson,
@@ -1111,7 +1112,7 @@ export async function getProjectTasks(projectId: string): Promise<ProjectTask[]>
   const { data: taskRows, error } = await supabase
     .from("tasks")
     .select(
-      "id, project_id, title, description, status, priority, due_date, position, created_at, profiles!tasks_created_by_fkey(full_name), task_assignees(member_id, profiles!task_assignees_member_id_fkey(id, full_name))"
+      "id, project_id, title, description, status, priority, due_date, labels, position, created_at, profiles!tasks_created_by_fkey(full_name), task_assignees(member_id, profiles!task_assignees_member_id_fkey(id, full_name))"
     )
     .eq("project_id", projectId)
     .order("position", { ascending: true });
@@ -1159,11 +1160,64 @@ export async function getProjectTasks(projectId: string): Promise<ProjectTask[]>
       status: row.status,
       priority: row.priority,
       dueDate: row.due_date,
+      labels: row.labels ?? [],
       position: Number(row.position),
       assignees,
       comments,
       createdByName: creator?.full_name ?? null,
       createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Every open (not-done) task assigned to the signed-in user, across every
+ * project, soonest due first — the cross-project "My Tasks" view (the
+ * Jira/ClickUp "My Work" equivalent). Returns [] when signed out rather
+ * than throwing, since this is a nice-to-have dashboard widget, not a
+ * page whose absence should break anything.
+ */
+export async function getMyOpenTasks(): Promise<MyTask[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: assignedRows, error: assignedError } = await supabase
+    .from("task_assignees")
+    .select("task_id")
+    .eq("member_id", user.id);
+
+  if (assignedError) throw new Error(`Failed to load my tasks: ${assignedError.message}`);
+
+  const taskIds = (assignedRows ?? []).map((r) => r.task_id);
+  if (!taskIds.length) return [];
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("id, project_id, title, status, priority, due_date, labels, projects(name)")
+    .in("id", taskIds)
+    .neq("status", "done")
+    .order("due_date", { ascending: true, nullsFirst: false });
+
+  if (error) throw new Error(`Failed to load my tasks: ${error.message}`);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return (data ?? []).map((row) => {
+    const project = Array.isArray(row.projects) ? row.projects[0] : row.projects;
+    return {
+      id: row.id,
+      projectId: row.project_id,
+      projectName: project?.name ?? "Unknown project",
+      title: row.title,
+      status: row.status,
+      priority: row.priority,
+      dueDate: row.due_date,
+      labels: row.labels ?? [],
+      overdue: !!row.due_date && new Date(row.due_date) < today,
     };
   });
 }

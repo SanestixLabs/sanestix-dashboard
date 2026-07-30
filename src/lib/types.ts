@@ -395,6 +395,18 @@ export interface Project {
 export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
+// A small fixed tag palette (Jira "labels" / ClickUp "tags") rather than
+// free-form text, so the board filter dropdown stays a clean, known list
+// instead of every task inventing its own one-off tag.
+export const TASK_LABELS = [
+  "Bug",
+  "Feature",
+  "Design",
+  "Client Request",
+  "Tech Debt",
+  "Blocked",
+] as const;
+
 export interface ProjectPerson {
   id: string;
   fullName: string | null;
@@ -416,11 +428,27 @@ export interface ProjectTask {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
+  labels: string[];
   position: number;
   assignees: ProjectPerson[];
   comments: TaskComment[];
   createdByName: string | null;
   createdAt: string;
+}
+
+// A task assigned to the current user, with enough project context to jump
+// straight to it — the data behind the cross-project "My Tasks" panel on
+// the Projects list page (the ClickUp/Jira "My Work" equivalent).
+export interface MyTask {
+  id: string;
+  projectId: string;
+  projectName: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: string | null;
+  overdue: boolean;
+  labels: string[];
 }
 
 export interface ProjectDetail {

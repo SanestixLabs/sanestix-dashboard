@@ -248,6 +248,7 @@ export async function addTask(formData: FormData) {
   const priority = String(formData.get("priority") ?? "medium");
   const dueDate = String(formData.get("dueDate") ?? "") || null;
   const assigneeIds = formData.getAll("assigneeIds").map(String).filter(Boolean);
+  const labels = formData.getAll("labels").map(String).filter(Boolean);
 
   if (!projectId || !title || !TASK_PRIORITIES.includes(priority)) {
     redirect(`/projects/${projectId}?error=${encodeURIComponent("Please fill in a task title")}`);
@@ -266,6 +267,7 @@ export async function addTask(formData: FormData) {
       description,
       priority,
       due_date: dueDate,
+      labels,
       status: "backlog",
       position: Date.now(),
       created_by: user?.id ?? null,
@@ -352,19 +354,32 @@ export async function moveTask(
 export async function updateTask(formData: FormData) {
   const taskId = String(formData.get("taskId") ?? "");
   const projectId = String(formData.get("projectId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "") || null;
   const priority = String(formData.get("priority") ?? "medium");
   const dueDate = String(formData.get("dueDate") ?? "") || null;
   const assigneeIds = formData.getAll("assigneeIds").map(String).filter(Boolean);
+  const labels = formData.getAll("labels").map(String).filter(Boolean);
 
   if (!taskId || !TASK_PRIORITIES.includes(priority)) {
     redirect(`/projects/${projectId}?error=${encodeURIComponent("Invalid task update")}`);
+  }
+  if (!title) {
+    redirect(`/projects/${projectId}?error=${encodeURIComponent("Task title can't be empty")}`);
   }
 
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("tasks")
-    .update({ priority, due_date: dueDate, updated_at: new Date().toISOString() })
+    .update({
+      title,
+      description,
+      priority,
+      due_date: dueDate,
+      labels,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", taskId);
 
   if (error) {

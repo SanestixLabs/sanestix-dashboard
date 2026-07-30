@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Trash2, X } from "lucide-react";
 import { updateTask, deleteTask, addTaskComment } from "@/app/(dashboard)/projects/actions";
 import { formatRelativeDate } from "@/lib/utils";
-import type { ProjectPerson, ProjectTask } from "@/lib/types";
+import { TASK_LABELS, type ProjectPerson, type ProjectTask } from "@/lib/types";
 
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString("en-PK", {
@@ -68,6 +68,32 @@ export function TaskDetailModal({
           <input type="hidden" name="taskId" value={task.id} />
           <input type="hidden" name="projectId" value={projectId} />
 
+          <div>
+            <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+              Title
+            </label>
+            <input
+              type="text"
+              name="title"
+              defaultValue={task.title}
+              required
+              className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[13px] focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+              Description
+            </label>
+            <textarea
+              name="description"
+              rows={3}
+              defaultValue={task.description ?? ""}
+              placeholder="Optional"
+              className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
@@ -94,6 +120,28 @@ export function TaskDetailModal({
                 defaultValue={task.dueDate ?? ""}
                 className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+              Labels
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TASK_LABELS.map((label) => (
+                <label
+                  key={label}
+                  className="flex items-center gap-1.5 border border-outline-variant px-2 py-1 text-[11px] text-on-surface-variant"
+                >
+                  <input
+                    type="checkbox"
+                    name="labels"
+                    value={label}
+                    defaultChecked={task.labels.includes(label)}
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
           </div>
 
