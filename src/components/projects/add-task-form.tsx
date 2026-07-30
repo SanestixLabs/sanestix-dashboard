@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { addTask } from "@/app/projects/actions";
+import { addTask } from "@/app/(dashboard)/projects/actions";
 import type { ProjectPerson } from "@/lib/types";
 
 export function AddTaskForm({

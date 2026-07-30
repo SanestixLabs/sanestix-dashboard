@@ -1,5 +1,5 @@
 import { Lock } from "lucide-react";
-import { verifyFinanceAccess } from "@/app/finance/actions";
+import { verifyFinanceAccess } from "@/app/(dashboard)/finance/actions";
 
 export const dynamic = "force-dynamic";
 

@@ -1,5 +1,5 @@
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { addProjectMember, removeProjectMember } from "@/app/projects/actions";
+import { addProjectMember, removeProjectMember } from "@/app/(dashboard)/projects/actions";
 import type { ProjectPerson } from "@/lib/types";
 
 export function MemberPicker({

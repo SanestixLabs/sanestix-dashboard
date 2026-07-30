@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Trash2, X } from "lucide-react";
-import { deleteTransaction } from "@/app/finance/actions";
+import { deleteTransaction } from "@/app/(dashboard)/finance/actions";
 
 export function DeleteTransactionButton({
   transactionId,

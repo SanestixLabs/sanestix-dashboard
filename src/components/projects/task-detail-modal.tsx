@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Trash2, X } from "lucide-react";
-import { updateTask, deleteTask, addTaskComment } from "@/app/projects/actions";
+import { updateTask, deleteTask, addTaskComment } from "@/app/(dashboard)/projects/actions";
 import { formatRelativeDate } from "@/lib/utils";
 import type { ProjectPerson, ProjectTask } from "@/lib/types";
 

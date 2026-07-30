@@ -13,7 +13,7 @@ import {
 import { Plus } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { StatusPill } from "@/components/ui/status-pill";
-import { moveTask } from "@/app/projects/actions";
+import { moveTask } from "@/app/(dashboard)/projects/actions";
 import { AddTaskForm } from "@/components/projects/add-task-form";
 import { TaskDetailModal } from "@/components/projects/task-detail-modal";
 import type { ProjectPerson, ProjectTask, TaskStatus } from "@/lib/types";
