@@ -671,14 +671,56 @@ export async function getUpcomingPayments(withinDays = 30): Promise<{
 // the Executive Dashboard.
 // ---------------------------------------------------------------------------
 
-const FUNNEL_ORDER = ["new", "contacted", "qualified", "proposal", "won"] as const;
+// Milestone subset of the full 14-stage pipeline — a funnel chart with all
+// 14 stages as bars is unreadable, so this picks the stages a salesperson
+// actually thinks of as a funnel checkpoint. Order here defines the funnel's
+// left-to-right rank; every lead is bucketed into the highest rank it has
+// reached (see `rank` below in getCrmData).
+const FUNNEL_ORDER = [
+  "new",
+  "connected",
+  "qualified",
+  "demo_scheduled",
+  "proposal_sent",
+  "won",
+] as const;
 const FUNNEL_LABELS: Record<(typeof FUNNEL_ORDER)[number], string> = {
   new: "Leads",
-  contacted: "Contacted",
+  connected: "Connected",
   qualified: "Qualified",
-  proposal: "Proposal",
+  demo_scheduled: "Demo",
+  proposal_sent: "Proposal",
   won: "Closed Won",
 };
+
+// Full forward-pipeline order (excludes "lost" and "nurture", which are
+// side states rather than funnel progress). Used only to figure out which
+// FUNNEL_ORDER milestone a lead has reached so far.
+const STAGE_ORDER = [
+  "new",
+  "attempted_contact",
+  "connected",
+  "qualified",
+  "discovery_scheduled",
+  "discovery_completed",
+  "demo_scheduled",
+  "demo_completed",
+  "proposal_sent",
+  "negotiation",
+  "contract_sent",
+  "won",
+] as const;
+
+function funnelRank(stage: string): number {
+  const pos = STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number]);
+  if (pos === -1) return -1; // lost / nurture — excluded from the funnel
+  let rank = 0;
+  for (let m = 0; m < FUNNEL_ORDER.length; m++) {
+    const milestonePos = STAGE_ORDER.indexOf(FUNNEL_ORDER[m]);
+    if (milestonePos <= pos) rank = m;
+  }
+  return rank;
+}
 
 export async function getCrmCompanies(): Promise<CrmCompany[]> {
   const supabase = await createClient();
@@ -764,6 +806,9 @@ export async function getCrmLeads(): Promise<CrmLead[]> {
       .select(
         `id, title, company_id, contact_id, stage, value, source, owner_id,
          expected_close_date, notes, lost_reason, converted_project_id, created_at, updated_at,
+         industry, website, phone, email, address, city, state, country, timezone,
+         employees_count, revenue_estimate, google_rating, review_count,
+         current_crm, current_receptionist, priority, lead_score, tags,
          crm_companies(name),
          crm_contacts(full_name, email),
          owner:profiles!crm_leads_owner_id_fkey(full_name),
@@ -850,12 +895,14 @@ export async function getLeadActivities(leadId: string): Promise<CrmLeadActivity
  * with an `overdue` flag. Used by both the CRM Tasks page and (optionally)
  * a dashboard widget later.
  */
-export async function getOpenLeadTasks(): Promise<CrmLeadTask[]> {
+export async function getOpenLeadTasks(leadId?: string): Promise<CrmLeadTask[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("crm_lead_tasks")
     .select("id, lead_id, title, due_date, done, created_at, profiles(full_name), crm_leads(title)")
-    .eq("done", false)
+    .eq("done", false);
+  if (leadId) query = query.eq("lead_id", leadId);
+  const { data, error } = await query
     .order("due_date", { ascending: true });
 
   if (error) throw new Error(`Failed to load lead tasks: ${error.message}`);

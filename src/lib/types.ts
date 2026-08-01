@@ -295,15 +295,46 @@ export interface CrmContact {
   createdAt: string;
 }
 
-export type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+export type LeadStage =
+  | "new"
+  | "attempted_contact"
+  | "connected"
+  | "qualified"
+  | "discovery_scheduled"
+  | "discovery_completed"
+  | "demo_scheduled"
+  | "demo_completed"
+  | "proposal_sent"
+  | "negotiation"
+  | "contract_sent"
+  | "won"
+  | "lost"
+  | "nurture";
 
 export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
   { value: "new", label: "New" },
-  { value: "contacted", label: "Contacted" },
+  { value: "attempted_contact", label: "Attempted Contact" },
+  { value: "connected", label: "Connected" },
   { value: "qualified", label: "Qualified" },
-  { value: "proposal", label: "Proposal" },
+  { value: "discovery_scheduled", label: "Discovery Scheduled" },
+  { value: "discovery_completed", label: "Discovery Completed" },
+  { value: "demo_scheduled", label: "Demo Scheduled" },
+  { value: "demo_completed", label: "Demo Completed" },
+  { value: "proposal_sent", label: "Proposal Sent" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "contract_sent", label: "Contract Sent" },
   { value: "won", label: "Won" },
   { value: "lost", label: "Lost" },
+  { value: "nurture", label: "Nurture" },
+];
+
+export type LeadPriority = "low" | "medium" | "high" | "urgent";
+
+export const LEAD_PRIORITIES: { value: LeadPriority; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
 ];
 
 // Shown as a dropdown when a lead is marked "lost", so win/loss reporting
@@ -334,6 +365,24 @@ export interface CrmLead {
   notes: string | null;
   lostReason: string | null;
   convertedProjectId: string | null;
+  industry: string | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  timezone: string | null;
+  employeesCount: number | null;
+  revenueEstimate: number | null;
+  googleRating: number | null;
+  reviewCount: number | null;
+  currentCrm: string | null;
+  currentReceptionist: string | null;
+  priority: LeadPriority;
+  leadScore: number;
+  tags: string[];
   openTaskCount: number;
   overdueTaskCount: number;
   createdByName: string | null;

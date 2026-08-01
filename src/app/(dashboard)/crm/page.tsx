@@ -7,19 +7,11 @@ import { getCrmLeads, getCrmCompanies, getCrmContacts } from "@/lib/supabase/que
 import { addLead, updateLeadStage, deleteLead } from "@/app/(dashboard)/crm/actions";
 import { LEAD_STAGES, type LeadStage } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import { STAGE_TONE } from "@/lib/crm-constants";
 
 export const dynamic = "force-dynamic";
 
-const STAGE_TONE: Record<LeadStage, "primary" | "neutral" | "success" | "warning" | "error"> = {
-  new: "primary",
-  contacted: "neutral",
-  qualified: "neutral",
-  proposal: "warning",
-  won: "success",
-  lost: "error",
-};
-
-const BOARD_STAGES = LEAD_STAGES.filter((s) => s.value !== "lost");
+const BOARD_STAGES = LEAD_STAGES.filter((s) => s.value !== "lost" && s.value !== "nurture");
 
 export default async function CrmPage({
   searchParams,

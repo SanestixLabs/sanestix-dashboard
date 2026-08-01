@@ -42,3 +42,9 @@ export function formatRelativeDate(isoDate: string): { label: string; daysUntil:
   if (daysUntil > 1) return { label: `In ${daysUntil} days`, daysUntil };
   return { label: `${Math.abs(daysUntil)} days overdue`, daysUntil };
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(value: string): boolean {
+  return EMAIL_RE.test(value);
+}

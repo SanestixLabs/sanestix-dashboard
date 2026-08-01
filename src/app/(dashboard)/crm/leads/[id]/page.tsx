@@ -25,27 +25,12 @@ import {
   toggleLeadTask,
   deleteLeadTask,
 } from "@/app/(dashboard)/crm/actions";
-import { LEAD_STAGES, LOST_REASONS, type LeadStage } from "@/lib/types";
+import { LEAD_STAGES, LOST_REASONS, LEAD_PRIORITIES, type LeadStage } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const STAGE_TONE: Record<LeadStage, "primary" | "neutral" | "success" | "warning" | "error"> = {
-  new: "primary",
-  contacted: "neutral",
-  qualified: "neutral",
-  proposal: "warning",
-  won: "success",
-  lost: "error",
-};
-
-const ACTIVITY_LABEL: Record<string, string> = {
-  note: "Note",
-  call: "Call",
-  email: "Email",
-  meeting: "Meeting",
-  stage_change: "Stage change",
-};
+import { STAGE_TONE, ACTIVITY_LABEL } from "@/lib/crm-constants";
 
 export default async function LeadDetailPage({
   params,
@@ -61,11 +46,11 @@ export default async function LeadDetailPage({
 
   const [activities, allOpenTasks, companies, contacts] = await Promise.all([
     getLeadActivities(id),
-    getOpenLeadTasks(),
+    getOpenLeadTasks(id),
     getCrmCompanies(),
     getCrmContacts(),
   ]);
-  const leadTasks = allOpenTasks.filter((t) => t.leadId === id);
+  const leadTasks = allOpenTasks;
   const redirectTo = `/crm/leads/${id}`;
 
   return (
@@ -152,6 +137,47 @@ export default async function LeadDetailPage({
               <span className="text-on-surface-variant">Contact email</span>
               <span className="text-on-surface">{lead.contactEmail ?? "—"}</span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-variant">Priority</span>
+              <span className="text-on-surface capitalize">{lead.priority}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-variant">Lead score</span>
+              <span className="font-mono-data text-on-surface">{lead.leadScore}/100</span>
+            </div>
+            {(lead.industry || lead.phone || lead.email || lead.website) && (
+              <div className="border-t border-outline-variant pt-3">
+                <span className="text-on-surface-variant">Firmographics</span>
+                <div className="mt-1.5 space-y-1 text-on-surface">
+                  {lead.industry && <p>Industry: {lead.industry}</p>}
+                  {lead.website && <p>Website: {lead.website}</p>}
+                  {lead.phone && <p>Phone: {lead.phone}</p>}
+                  {lead.email && <p>Email: {lead.email}</p>}
+                  {(lead.city || lead.state || lead.country) && (
+                    <p>
+                      Location: {[lead.city, lead.state, lead.country].filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                  {lead.employeesCount != null && <p>Employees: {lead.employeesCount}</p>}
+                  {lead.currentCrm && <p>Current CRM: {lead.currentCrm}</p>}
+                  {lead.currentReceptionist && (
+                    <p>Current receptionist: {lead.currentReceptionist}</p>
+                  )}
+                </div>
+              </div>
+            )}
+            {lead.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-t border-outline-variant pt-3">
+                {lead.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="border border-outline-variant bg-background px-2 py-0.5 text-[11px] text-on-surface-variant"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
             {lead.notes && (
               <div className="border-t border-outline-variant pt-3">
                 <span className="text-on-surface-variant">Notes</span>
@@ -275,6 +301,147 @@ export default async function LeadDetailPage({
                     name="source"
                     defaultValue={lead.source ?? ""}
                     placeholder="e.g. Referral, Website, LinkedIn"
+                    className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Priority
+                    </label>
+                    <select
+                      name="priority"
+                      defaultValue={lead.priority}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    >
+                      {LEAD_PRIORITIES.map((p) => (
+                        <option key={p.value} value={p.value}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Lead score (0–100)
+                    </label>
+                    <input
+                      name="leadScore"
+                      type="number"
+                      min="0"
+                      max="100"
+                      defaultValue={lead.leadScore}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Industry
+                    </label>
+                    <input
+                      name="industry"
+                      defaultValue={lead.industry ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Website
+                    </label>
+                    <input
+                      name="website"
+                      defaultValue={lead.website ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Phone
+                    </label>
+                    <input
+                      name="phone"
+                      defaultValue={lead.phone ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Email
+                    </label>
+                    <input
+                      name="email"
+                      type="email"
+                      defaultValue={lead.email ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      City
+                    </label>
+                    <input
+                      name="city"
+                      defaultValue={lead.city ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      State
+                    </label>
+                    <input
+                      name="state"
+                      defaultValue={lead.state ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Country
+                    </label>
+                    <input
+                      name="country"
+                      defaultValue={lead.country ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Current CRM
+                    </label>
+                    <input
+                      name="currentCrm"
+                      defaultValue={lead.currentCrm ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                      Current receptionist
+                    </label>
+                    <input
+                      name="currentReceptionist"
+                      defaultValue={lead.currentReceptionist ?? ""}
+                      className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block font-mono-data text-[10px] uppercase tracking-wider text-on-surface-variant">
+                    Tags (comma-separated)
+                  </label>
+                  <input
+                    name="tags"
+                    defaultValue={lead.tags.join(", ")}
+                    placeholder="e.g. hot, referral, enterprise"
                     className="w-full border border-outline-variant bg-background px-2 py-1.5 font-mono-data text-[12px] focus:border-primary focus:outline-none"
                   />
                 </div>

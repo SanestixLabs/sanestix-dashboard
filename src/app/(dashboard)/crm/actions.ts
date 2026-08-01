@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { confirmPasswordOrRedirect } from "@/lib/auth-confirm";
 import { recordActivity } from "@/lib/audit";
 import { LEAD_STAGES } from "@/lib/types";
+import { isValidEmail } from "@/lib/utils";
 
 const VALID_STAGES = LEAD_STAGES.map((s) => s.value);
 
@@ -133,6 +134,7 @@ export async function addContact(formData: FormData) {
   const notes = String(formData.get("notes") ?? "") || null;
 
   if (!fullName) redirect("/crm/contacts?error=Please enter a contact name");
+  if (email && !isValidEmail(email)) redirect("/crm/contacts?error=" + encodeURIComponent("Enter a valid email address"));
 
   const supabase = await createClient();
   const {
@@ -182,6 +184,7 @@ export async function updateContact(formData: FormData) {
 
   if (!contactId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing contact id")}`);
   if (!fullName) redirect(`${redirectTo}?error=${encodeURIComponent("Please enter a contact name")}`);
+  if (email && !isValidEmail(email)) redirect(`${redirectTo}?error=${encodeURIComponent("Enter a valid email address")}`);
 
   const supabase = await createClient();
   const {
@@ -255,9 +258,13 @@ export async function addLead(formData: FormData) {
   const source = String(formData.get("source") ?? "") || null;
   const expectedCloseDate = String(formData.get("expectedCloseDate") ?? "") || null;
   const notes = String(formData.get("notes") ?? "") || null;
+  const priority = String(formData.get("priority") ?? "medium");
 
   if (!title || value < 0) {
     redirect("/crm?error=Please fill in the lead title with a valid value");
+  }
+  if (!["low", "medium", "high", "urgent"].includes(priority)) {
+    redirect("/crm?error=Invalid priority");
   }
 
   const supabase = await createClient();
@@ -277,6 +284,7 @@ export async function addLead(formData: FormData) {
       expected_close_date: expectedCloseDate,
       notes,
       stage: "new",
+      priority,
       created_by: user?.id ?? null,
     })
     .select("id")
@@ -317,9 +325,33 @@ export async function updateLead(formData: FormData) {
   const notes = String(formData.get("notes") ?? "") || null;
   const redirectTo = String(formData.get("redirectTo") ?? "/crm");
 
+  const priority = String(formData.get("priority") ?? "medium");
+  const leadScore = Number(formData.get("leadScore") ?? 0);
+  const industry = String(formData.get("industry") ?? "") || null;
+  const website = String(formData.get("website") ?? "") || null;
+  const phone = String(formData.get("phone") ?? "") || null;
+  const email = String(formData.get("email") ?? "") || null;
+  const address = String(formData.get("address") ?? "") || null;
+  const city = String(formData.get("city") ?? "") || null;
+  const state = String(formData.get("state") ?? "") || null;
+  const country = String(formData.get("country") ?? "") || null;
+  const timezone = String(formData.get("timezone") ?? "") || null;
+  const currentCrm = String(formData.get("currentCrm") ?? "") || null;
+  const currentReceptionist = String(formData.get("currentReceptionist") ?? "") || null;
+  const tags = String(formData.get("tags") ?? "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+
   if (!leadId) redirect(`${redirectTo}?error=${encodeURIComponent("Missing lead id")}`);
   if (!title || value < 0) {
     redirect(`${redirectTo}?error=${encodeURIComponent("Please fill in the lead title with a valid value")}`);
+  }
+  if (!["low", "medium", "high", "urgent"].includes(priority)) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Invalid priority")}`);
+  }
+  if (leadScore < 0 || leadScore > 100) {
+    redirect(`${redirectTo}?error=${encodeURIComponent("Lead score must be between 0 and 100")}`);
   }
 
   const supabase = await createClient();
@@ -337,6 +369,20 @@ export async function updateLead(formData: FormData) {
       source,
       expected_close_date: expectedCloseDate,
       notes,
+      priority,
+      lead_score: leadScore,
+      industry,
+      website,
+      phone,
+      email,
+      address,
+      city,
+      state,
+      country,
+      timezone,
+      current_crm: currentCrm,
+      current_receptionist: currentReceptionist,
+      tags,
     })
     .eq("id", leadId);
 
